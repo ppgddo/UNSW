@@ -9,27 +9,18 @@
 
 // Internal headers
 #include "HelperFunctions.h"
+#include "AhEncodeFunctions.h"
 
 
 using namespace std;
 using namespace ah::helpers;
-
-
-static const bool DEBUG_MODE = true;
-
+using namespace ah::encode;
 
 
 
-// TODO: Put this into a seperate cpp file!
 
 
-void EncodeMsg(const string& msg, const bool delimitMode)
-{
-	if (DEBUG_MODE)
-	{
-		std::cout << "(Debug Mode ON) ='" << msg << ", delimit mode = " << delimitMode << "'\n";
-	}
-}
+
 
 
 
