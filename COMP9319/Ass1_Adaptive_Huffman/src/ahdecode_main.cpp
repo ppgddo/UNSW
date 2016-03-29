@@ -3,9 +3,18 @@
 
 //#include "stdafx.h"
 
+#include <stdio.h>
+#include <iostream>
+#include <string>
+
+using namespace std;
 
 int main()
 {
+
+
+	cout << "ah decode" << endl;
+
 	return 0;
 }
 
