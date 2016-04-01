@@ -19,13 +19,6 @@ using namespace ah::encode;
 
 
 
-
-
-
-
-
-
-
 int main(int argc, char ** argv)
 {
 
