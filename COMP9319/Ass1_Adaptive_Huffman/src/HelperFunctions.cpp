@@ -46,6 +46,10 @@ namespace ah {
 		// which in the default case is 2.
 		void ConvertBaseVersion(std::string& output, char input, const int base, int digits)
 		{
+			todo modify
+
+
+
 			int remainder;
 			char digitsArray[17] = "0123456789ABCDEF";
 			output.resize(digits);

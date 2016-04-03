@@ -5,6 +5,7 @@
 #include <queue>
 #include <vector>
 #include <unordered_map>
+#include <map>
 #include <cassert>
 
 // Internal headers
@@ -25,8 +26,57 @@ namespace ah {
 		class Block
 		{
 		public:
-			typedef std::priority_queue< int > BlockQueueT;
-			typedef std::unordered_map< int, BlockQueueT > BlockMapT;
+			
+			// Define a contrainer that defines the functions required that doesn't
+			// depend on the container used
+			template<class T>
+			class BlockContainer
+			{
+			public:
+				void push(const T& data)
+				{
+					m_blockQueue.push(data);
+					m_blockMap[data] = data;
+				}
+
+				void pop()
+				{
+					m_blockMap.erase(m_blockQueue.top());
+					m_blockQueue.pop();
+				}
+
+				const T& top()
+				{
+					return m_blockQueue.top();
+				}
+
+				Node* HighestNodeWithoutChildren(const T value, vector<Node*>& nodeVector)
+				{
+					Node* highestNodeWithoutChildren = 0;
+					for (auto it = m_blockMap.begin(); it != m_blockMap.end(); ++it)
+					{
+						T address = it->second;
+						if (address > value)
+						{
+							Node* higherNode = nodeVector.at(address);
+							if ((higherNode->m_leftChild == 0) &&
+								(higherNode->m_rightChild == 0))
+							{
+								highestNodeWithoutChildren = higherNode;
+							}
+						}
+					}
+					return highestNodeWithoutChildren;
+				}
+
+			private:
+				priority_queue<T> m_blockQueue;
+				map<T, T> m_blockMap;
+			};
+
+			typedef priority_queue< int > HigherAddressQueueT;
+			typedef BlockContainer< int > BlockContainerT;
+			typedef std::unordered_map< int, BlockContainerT > BlockMapT;
 
 			Block::Block()
 				: m_nodeAddresses(257, 0)
@@ -38,16 +88,53 @@ namespace ah {
 				if (blockFound == m_existingQueues.end())
 				{
 					// If the isn't a block with this weight, create a new queue for it
-					BlockQueueT newBlock;
+					BlockContainerT newBlock;
 					newBlock.push(newNode->m_address);
 					m_existingQueues[newNode->m_weight] = newBlock;
 				}
 				else
 				{
-					m_existingQueues[newNode->m_weight].push(newNode->m_address);
+					// Check if this is an internal node (i.e. has children) and if so, make sure it has
+					// a higher address than any leaf nodes (i.e. have no children ) by swapping it
+					// with any leaf node that has a higher address.
+
+					BlockContainerT& tempQueue = m_existingQueues[newNode->m_weight];
+
+					if ( newNode->m_leftChild || newNode->m_rightChild )
+					{
+						Node* highestNodeWithoutChildren =
+							tempQueue.HighestNodeWithoutChildren(newNode->m_address, m_nodeAddresses);
+						if (highestNodeWithoutChildren)
+						{
+							SwapNodes(highestNodeWithoutChildren, newNode);
+						}
+					}
+					tempQueue.push(newNode->m_address);
 				}
 
 				m_nodeAddresses.at(newNode->m_address) = newNode;
+			}
+
+			void SwapNodes(Node* firstNode, Node* secondNode)
+			{
+				int oldFirstAddress = firstNode->m_address;
+				Node* oldFirstNode = firstNode;
+				Node* oldFirstParent = oldFirstNode->m_parent;
+				m_nodeAddresses[oldFirstAddress] = secondNode;
+				m_nodeAddresses[secondNode->m_address] = oldFirstNode;
+				oldFirstNode->m_address = secondNode->m_address;
+				secondNode->m_address = oldFirstAddress;
+
+				// swap the parents and update their new children (the order this is done is critical!)
+				oldFirstNode->m_parent = secondNode->m_parent;
+				oldFirstNode->m_parent->m_rightChild = oldFirstNode;
+				secondNode->m_parent = oldFirstParent;
+				secondNode->m_parent->m_rightChild = secondNode;
+				if (DEBUG_MODE)
+				{
+					cout << "Debug: swapped nodes: " << firstNode->m_symbol << " and "
+						<< secondNode->m_symbol << endl;
+				}
 			}
 
 			void SwitchThenIncrementNodeWeight( Node* currentNode)
@@ -61,28 +148,14 @@ namespace ah {
 				{
 					// If it's not currently the highest address in the block
 					// and the highest addrss isn't it's parent (critical!), then swap it
-					Node* oldHighestNode = currentHighestNode;
-					Node* oldHighestParent = oldHighestNode->m_parent;
-					m_nodeAddresses[highestBlockAddress] = currentNode;
-					m_nodeAddresses[currentNode->m_address] = oldHighestNode;
-					oldHighestNode->m_address = currentNode->m_address;
-					currentNode->m_address = highestBlockAddress;
-
-					// swap the parents and update their new children (the order this is done is critical!)
-					oldHighestNode->m_parent = currentNode->m_parent;
-					oldHighestNode->m_parent->m_rightChild = oldHighestNode;
-					currentNode->m_parent = oldHighestParent;
-					currentNode->m_parent->m_rightChild = currentNode;
-					if (DEBUG_MODE)
-					{
-						cout << "Debug: parents swapped!" << endl;
-					}
+					SwapNodes(currentHighestNode, currentNode);
 				}
 
 				// Before incrementing the weight of the node, remove it from it's current block
-				BlockQueueT& addresssQueue = m_existingQueues[currentNode->m_weight];
-				addresssQueue.pop();
+				BlockContainerT& addressQueue = m_existingQueues[currentNode->m_weight];
+				addressQueue.pop();
 				currentNode->m_weight++;
+
 				// Then move it into it's new block for it's new weight
 				this->InsertNode(currentNode);
 			}
@@ -97,8 +170,8 @@ namespace ah {
 					throw std::runtime_error("Error: this block doesn't exist yet!");
 				}
 
-				BlockQueueT& addresssQueue = m_existingQueues[weight];
-				return addresssQueue.top();
+				BlockContainerT addressQueue = m_existingQueues[weight];
+				return addressQueue.top();
 			}
 
 		private:
