@@ -7,13 +7,14 @@
 #include <unordered_map>
 #include <map>
 #include <cassert>
+#include <algorithm>
 
 // Internal headers
 #include "AhEncodeFunctions.h"
 #include "HelperFunctions.h"
 
 
-static const bool DEBUG_MODE = true;
+static const bool DEBUG_MODE = false;
 
 
 using namespace std;
@@ -403,15 +404,45 @@ namespace ah {
 
 
 
+		void ConstructSymbolFromTree(Node* startNode, string& outString)
+		{
+			outString.clear();
+			Node* parent = startNode->m_parent;
+
+			if (parent == 0)
+				return;
+
+			Node* nextSymbol = startNode;
+			while (parent != 0)
+			{
+				if (parent->m_rightChild == nextSymbol)
+				{
+					outString.push_back('1');
+				}
+				else
+				{
+					outString.push_back('0');
+				}
+				nextSymbol = parent;
+				parent = parent->m_parent;
+			}
+
+			std::reverse(outString.begin(), outString.end());
+		}
+
+
+
 
 		void EncodeMsg(const string& msg, const bool delimitMode)
 		{
+			std::string binaryString;
+			std::string TransmittedSignal;
+
 			if (DEBUG_MODE)
 			{
-				std::string binaryString;
-				ConvertBaseVersion(binaryString, char(msg.front()));
+				ConvertCharToBinaryString(binaryString, char(msg.front()));
 
-				std::cout << "(Debug Mode ON) ='" << msg << ", binary of first char = "
+				std::cout << endl <<  "(Debug Mode ON) ='" << msg << ", binary of first char = "
 					<< binaryString << ", delimit mode = " << delimitMode << std::endl;
 			}
 						
@@ -431,11 +462,39 @@ namespace ah {
 				if (DEBUG_MODE)
 					std::cout << "debug = " << symbol << endl;
 
+				// Transmit the current tree before updating it and only send the
+				// symbol if it hasn't already been sent
+				bool symbolFound = 
+					existingSymbols.find(symbol) != existingSymbols.end();
+				Node* transmitNode = newNytNode;
+				if (symbolFound)
+				{
+					transmitNode = existingSymbols[symbol];
+				}
+
+				string symbolFromTree;
+				ConstructSymbolFromTree(transmitNode, symbolFromTree);
+				TransmittedSignal.append(symbolFromTree);
+
+				if (!symbolFound)
+				{
+					// If it is a new symbol transmit it too
+					ConvertCharToBinaryString(binaryString, symbol);
+					TransmittedSignal.append(binaryString);
+				}
+
+				if (delimitMode)
+				{
+					// If we are in "delimit mode" (i.e. -s command option), add in a space
+					TransmittedSignal.push_back(' ');
+				}
+
+				// Now update the tree for new symbol
 				Node* qNode = 0;
 				Node* leafToIncrement = 0;
 
-				SymbolMapT::const_iterator symbolFound = existingSymbols.find(symbol);
-				if (symbolFound == existingSymbols.end())
+				
+				if (!symbolFound )
 				{
 					// If this symbol is not yet transmitted (nyt), the nyt node will give "birth"
 					// to new nyt node (as left child) and the new symbol (as right child).
@@ -496,11 +555,9 @@ namespace ah {
 				leafToIncrement = 0;
 
 
-
-				// TODO Iterate through existingSymbols map and delete all nodes to prevent memory leak!!!
-				// Do this in the "Block" desctructor!
-
 			}
+
+			cout << TransmittedSignal << endl;
 		}
 
 

@@ -39,29 +39,21 @@ namespace ah {
 		}
 
 
-		// This was modified from the code from the following website
-		// http://www.techworld.com.au/article/527677/how_convert_an_ascii_char_binary_string_representation_c/
 		// It converts the ASCII character into its corresponding binary value 
-		// as a string of '0' and '1'. It does this simply by dividing the input by the base
+		// as a string of '0' and '1'. It does this simply by dividing the input by the 2
 		// which in the default case is 2.
-		void ConvertBaseVersion(std::string& output, char input, const int base, int digits)
+		void ConvertCharToBinaryString(std::string& binaryStrOut, char charValue)
 		{
-			todo modify
-
-
-
+			char binaryDigits[3] = "01";
+			binaryStrOut.resize(8);
 			int remainder;
-			char digitsArray[17] = "0123456789ABCDEF";
-			output.resize(digits);
 
-			for (int i = digits; i > 0; i--)
+			for (auto i = 8; i > 0; i--)
 			{
-				remainder = input % base;
-				input = input / base;
-				output[i - 1] = digitsArray[remainder];
+				remainder = charValue % 2;
+				charValue = charValue / 2;
+				binaryStrOut.at(i - 1) = binaryDigits[remainder];
 			}
-
-			//output[digits] = '\0';
 		}
 
 	}

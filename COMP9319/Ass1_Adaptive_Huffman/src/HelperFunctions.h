@@ -12,7 +12,7 @@ namespace ah {
 		bool SetDelimitMode(int argc, char ** argv);
 
 		
-		void ConvertBaseVersion(std::string& output, char input, const int base = 2, int digits = 8);
+		void ConvertCharToBinaryString(std::string& output, char input);
 
 	}
 }
