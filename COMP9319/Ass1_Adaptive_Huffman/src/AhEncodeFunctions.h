@@ -10,7 +10,7 @@ namespace ah {
 		{
 		public:
 
-			Node::Node(int address, char symbol,  int weight = 0,
+			Node(int address, char symbol,  int weight = 0,
 				Node* parent = 0, Node* leftChild = 0, Node* rightChild = 0)
 				: m_address(address)
 				, m_symbol(symbol)

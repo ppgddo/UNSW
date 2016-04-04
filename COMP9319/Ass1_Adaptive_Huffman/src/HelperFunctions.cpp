@@ -15,7 +15,7 @@ namespace ah {
 		{
 			for (int i = 1; i < argc; i++)
 			{
-				cout << argv[i] << endl;
+				//cout << argv[i] << endl;
 				outArray.push_back(string(argv[i]));
 			}
 		}

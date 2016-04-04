@@ -240,12 +240,12 @@ namespace ah {
 			typedef BlockContainer< Node* > BlockContainerT;
 			typedef std::unordered_map< int, BlockContainerT > BlockMapT;
 
-			Block::Block()
+			Block()
 				: m_nodeAddresses(257, 0)
 			{}
 
 
-			Block::~Block()
+			~Block()
 			{
 				// Delete all the nodes
 				for (auto it = m_nodeAddresses.begin(); it != m_nodeAddresses.end(); ++it)
@@ -310,7 +310,6 @@ namespace ah {
 			void SlideAndIncrement(Node* &pNode)
 			{
 				Node* previousParent = pNode->m_parent;
-				int weight = pNode->m_weight;
 				bool isLeaf = IsLeafNode(pNode);
 				BlockContainerT& thisBlockQueue = m_existingQueues[pNode->m_weight];
 
@@ -370,8 +369,6 @@ namespace ah {
 
 			Node* GetHighestLeafNode(Node* currentNode)
 			{
-				Node* highestLeafNode = 0;
-
 				BlockMapT::const_iterator blockFound = m_existingQueues.find(currentNode->m_weight);
 				if (blockFound == m_existingQueues.end())
 				{
