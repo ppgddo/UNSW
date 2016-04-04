@@ -23,64 +23,238 @@ using namespace ah::helpers;
 namespace ah {
 	namespace encode {
 
+		bool IsLeafNode(Node* node)
+		{
+			if (node->m_leftChild || node->m_rightChild)
+			{
+				return false;
+			}
+			else
+			{
+				return true;
+			}
+		}
+
+		void SwapNodesHelper(Node* &firstNode, Node* &secondNode, vector<Node*>& nodeAddresses)
+		{
+			int oldFirstAddress = firstNode->m_address;
+			Node* oldFirstNode = firstNode;
+			Node* oldFirstParent = oldFirstNode->m_parent;
+
+			// Update the parents first (hardest part!!)
+			if (oldFirstParent->m_rightChild == oldFirstNode)
+			{
+				oldFirstParent->m_rightChild = secondNode;
+			}
+			else
+			{
+				oldFirstParent->m_leftChild = secondNode;
+			}
+
+			Node* oldSecondParent = secondNode->m_parent;
+			if (oldSecondParent->m_rightChild == secondNode)
+			{
+				oldSecondParent->m_rightChild = oldFirstNode;
+			}
+			else
+			{
+				oldSecondParent->m_leftChild = oldFirstNode;
+			}
+
+			
+			// Swap the addresses
+			nodeAddresses[oldFirstAddress] = secondNode;
+			nodeAddresses[secondNode->m_address] = oldFirstNode;
+			oldFirstNode->m_address = secondNode->m_address;
+			secondNode->m_address = oldFirstAddress;
+
+			// swap the parents and update their new children and their
+			oldFirstNode->m_parent = secondNode->m_parent;
+			secondNode->m_parent = oldFirstParent;
+
+			if (DEBUG_MODE)
+			{
+				cout << "Debug: swapped nodes: " << firstNode->m_symbol << " and "
+					<< secondNode->m_symbol << endl;
+			}
+		}
+
+		void SlideNodesHelper(Node* &pNode, vector<Node*>& nodeVector, list<Node*>& nodeBlock)
+		{
+			// The special case is if the block only has one internal node, then
+			// it's just a direct swap
+			if (nodeBlock.size() == 1)
+			{
+				Node* singleNode = nodeBlock.front();	//nodeVector.at( (nodeBlock.front())->m_address);
+				SwapNodesHelper(pNode, singleNode, nodeVector);
+			}
+			else
+			{
+				for(auto rit = nodeBlock.rbegin(); rit != nodeBlock.rend(); ++rit)
+				{
+					// Iterate backwards to swap the target node starting from the 
+					// lowest node in block to highest
+					Node* nextLowestNode = (*rit); // nodeVector.at(address);
+					SwapNodesHelper(pNode, nextLowestNode, nodeVector);
+				}
+			}
+		}
+
+
+
 		class Block
 		{
 		public:
 			
 			// Define a contrainer that defines the functions required that doesn't
-			// depend on the container used
+			// depend on the type of container used
 			template<class T>
 			class BlockContainer
 			{
 			public:
-				void push(const T& data)
-				{
-					m_blockQueue.push(data);
-					m_blockMap[data] = data;
-				}
+				typedef list<T> ContainerT;
 
-				void pop()
+				void push(const T& data, bool isLeaf)
 				{
-					m_blockMap.erase(m_blockQueue.top());
-					m_blockQueue.pop();
-				}
-
-				const T& top()
-				{
-					return m_blockQueue.top();
-				}
-
-				Node* HighestNodeWithoutChildren(const T value, vector<Node*>& nodeVector)
-				{
-					Node* highestNodeWithoutChildren = 0;
-					for (auto it = m_blockMap.begin(); it != m_blockMap.end(); ++it)
+					if (isLeaf)
 					{
-						T address = it->second;
-						if (address > value)
+						InsertHelper(data, m_blockOfLeafNodes);
+					}
+					else
+					{
+						InsertHelper(data, m_blockOfInternalNodes);
+					}
+				}
+
+				bool IsEmpty(bool isLeaf)
+				{
+					if (isLeaf)
+					{
+						return m_blockOfLeafNodes.empty();
+					}
+					else
+					{
+						return m_blockOfInternalNodes.empty();
+					}
+				}
+
+				void RemoveNode(const T& node, bool isLeaf)
+				{
+					if (isLeaf && !m_blockOfLeafNodes.empty() )
+					{
+						m_blockOfLeafNodes.remove(node);
+					}
+					else if(!m_blockOfInternalNodes.empty() )
+					{
+						m_blockOfInternalNodes.remove(node);
+					}
+					else if (DEBUG_MODE)
+					{
+						assert(0);
+						cout << "Error! Removing node when container is empty! isLeaf = "
+							<< isLeaf << endl;
+					}
+				}
+
+				//const T& top(bool isLeaf)
+				//{
+				//	if (isLeaf)
+				//	{
+				//		return m_blockOfLeafNodes.front();
+				//	}
+				//	else
+				//	{
+				//		//TODO
+				//		assert(0);
+				//	}
+				//}
+
+
+				void SlideInternalNodesForLeaf(Node* &pNode, vector<Node*>& nodeVector)
+				{
+					SlideNodesHelper(pNode, nodeVector, m_blockOfInternalNodes);
+				}
+
+
+				void SlideLeavesForInternalNodes(Node* &pNode, vector<Node*>& nodeVector)
+				{
+					SlideNodesHelper(pNode, nodeVector, m_blockOfLeafNodes);
+				}
+
+
+				Node* HighestLeafNode(const T value)
+				{
+					return m_blockOfLeafNodes.front();
+				}
+
+
+
+			private:
+				void InsertHelper(const T& data, ContainerT& container)
+				{
+					// Insert data so that the container invariant is maintained:
+					// (i.e. It's ordered from highest address to lowest address)
+					// Find the correct position and use "insert" to put it in the
+					// correct position instead of sorting and reversing (linear time instead 
+					// of Nlog(N) time!)
+
+					if (container.empty())
+					{
+						container.push_back(data);
+					}
+					else
+					{
+						int address = data->m_address;
+						if (address < (container.back() )->m_address )
 						{
-							Node* higherNode = nodeVector.at(address);
-							if ((higherNode->m_leftChild == 0) &&
-								(higherNode->m_rightChild == 0))
+							// If the address is lower than the last address in container,
+							// insert at end
+							container.push_back(data);
+						}
+						else
+						{
+							// Otherwise find the correct position to insert
+							for (auto it = container.begin(); it != container.end(); ++it)
 							{
-								highestNodeWithoutChildren = higherNode;
+								int nextAddress = (*it)->m_address;
+								if (nextAddress < address)
+								{
+									// if the next address is lower than the one we are inserting
+									// then this is the position to insert it
+									container.insert(it, data);
+									break;
+								}
 							}
 						}
 					}
-					return highestNodeWithoutChildren;
 				}
 
-			private:
-				priority_queue<T> m_blockQueue;
-				map<T, T> m_blockMap;
-			};
+				// Private member Data of internal BlockContainer class:
+				ContainerT m_blockOfLeafNodes;
+				ContainerT m_blockOfInternalNodes;
 
-			typedef priority_queue< int > HigherAddressQueueT;
-			typedef BlockContainer< int > BlockContainerT;
+			};	// End of internal BlockContainer class definition
+
+
+			typedef BlockContainer< Node* > BlockContainerT;
 			typedef std::unordered_map< int, BlockContainerT > BlockMapT;
 
 			Block::Block()
 				: m_nodeAddresses(257, 0)
 			{}
+
+
+			Block::~Block()
+			{
+				// Delete all the nodes
+				for (auto it = m_nodeAddresses.begin(); it != m_nodeAddresses.end(); ++it)
+				{
+					if (*it)
+					{
+						delete(*it);
+					}
+				}
+			}
 
 			void InsertNode( Node*const newNode )
 			{
@@ -89,90 +263,138 @@ namespace ah {
 				{
 					// If the isn't a block with this weight, create a new queue for it
 					BlockContainerT newBlock;
-					newBlock.push(newNode->m_address);
+					newBlock.push(newNode, IsLeafNode(newNode) );
 					m_existingQueues[newNode->m_weight] = newBlock;
 				}
 				else
 				{
-					// Check if this is an internal node (i.e. has children) and if so, make sure it has
-					// a higher address than any leaf nodes (i.e. have no children ) by swapping it
-					// with any leaf node that has a higher address.
-
 					BlockContainerT& tempQueue = m_existingQueues[newNode->m_weight];
-
-					if ( newNode->m_leftChild || newNode->m_rightChild )
-					{
-						Node* highestNodeWithoutChildren =
-							tempQueue.HighestNodeWithoutChildren(newNode->m_address, m_nodeAddresses);
-						if (highestNodeWithoutChildren)
-						{
-							SwapNodes(highestNodeWithoutChildren, newNode);
-						}
-					}
-					tempQueue.push(newNode->m_address);
+					tempQueue.push(newNode, IsLeafNode(newNode) );
 				}
 
 				m_nodeAddresses.at(newNode->m_address) = newNode;
 			}
 
+
+			void MakeNodeInternal(Node* node)
+			{
+				// remove it from the list of leaf nodes
+				BlockContainerT& addressQueue = m_existingQueues[node->m_weight];
+				addressQueue.RemoveNode(node,true);
+
+				// then insert it
+				InsertNode(node);
+			}
+
+			void UpdateNodeList(Node* node)
+			{
+				// remove it from the list of its node type (leaf or internal)
+				BlockContainerT& addressQueue = m_existingQueues[node->m_weight];
+				addressQueue.RemoveNode(node, IsLeafNode(node) );
+
+				// then insert it
+				InsertNode(node);
+			}
+
+
 			void SwapNodes(Node* firstNode, Node* secondNode)
 			{
-				int oldFirstAddress = firstNode->m_address;
-				Node* oldFirstNode = firstNode;
-				Node* oldFirstParent = oldFirstNode->m_parent;
-				m_nodeAddresses[oldFirstAddress] = secondNode;
-				m_nodeAddresses[secondNode->m_address] = oldFirstNode;
-				oldFirstNode->m_address = secondNode->m_address;
-				secondNode->m_address = oldFirstAddress;
+				SwapNodesHelper(firstNode, secondNode, m_nodeAddresses);
 
-				// swap the parents and update their new children (the order this is done is critical!)
-				oldFirstNode->m_parent = secondNode->m_parent;
-				oldFirstNode->m_parent->m_rightChild = oldFirstNode;
-				secondNode->m_parent = oldFirstParent;
-				secondNode->m_parent->m_rightChild = secondNode;
-				if (DEBUG_MODE)
-				{
-					cout << "Debug: swapped nodes: " << firstNode->m_symbol << " and "
-						<< secondNode->m_symbol << endl;
-				}
+				// After swapping their order, update their order
+				UpdateNodeList(firstNode);
+				UpdateNodeList(secondNode);
 			}
 
-			void SwitchThenIncrementNodeWeight( Node* currentNode)
+			void SlideAndIncrement(Node* &pNode)
 			{
-				int highestBlockAddress =
-					this->getHighestAddress(currentNode->m_address, currentNode->m_weight);
-				Node* currentHighestNode = m_nodeAddresses[highestBlockAddress];
-				if( (highestBlockAddress != currentNode->m_address) 
-					&& (currentHighestNode != currentNode->m_parent ) 
-					&& (currentHighestNode != currentNode->m_rightChild) )
+				Node* previousParent = pNode->m_parent;
+				int weight = pNode->m_weight;
+				bool isLeaf = IsLeafNode(pNode);
+				BlockContainerT& thisBlockQueue = m_existingQueues[pNode->m_weight];
+
+				BlockMapT::const_iterator findNextBlock =
+					m_existingQueues.find(pNode->m_weight + 1);
+				bool nextBlockOfLeavesExist = false;
+				if (findNextBlock != m_existingQueues.end())
 				{
-					// If it's not currently the highest address in the block
-					// and the highest addrss isn't it's parent (critical!), then swap it
-					SwapNodes(currentHighestNode, currentNode);
+					nextBlockOfLeavesExist =
+						!(m_existingQueues[pNode->m_weight + 1].IsEmpty(true));
 				}
 
-				// Before incrementing the weight of the node, remove it from it's current block
-				BlockContainerT& addressQueue = m_existingQueues[currentNode->m_weight];
-				addressQueue.pop();
-				currentNode->m_weight++;
+				if (isLeaf && !(thisBlockQueue.IsEmpty(false)))
+				{
+					// Slide pNode in the tree ahead of the nodes in the block of 
+					// internal nodes with the same weight
+					thisBlockQueue.SlideInternalNodesForLeaf(pNode, m_nodeAddresses);
+				}
+				else if (!isLeaf && nextBlockOfLeavesExist)
+				{
+					// Slide pNode in the tree ahead of the nodes in the block of 
+					// leaf nodes with of weight = weight + 1
+					BlockContainerT& nextBlockQueue = m_existingQueues[pNode->m_weight + 1];
+					nextBlockQueue.SlideLeavesForInternalNodes(pNode, m_nodeAddresses);
+				}
+
+				// Before incrementing the weight of the node, remove it from it's current block,
+				BlockContainerT& addressQueue = m_existingQueues[pNode->m_weight];
+				addressQueue.RemoveNode(pNode, isLeaf);
+
+				pNode->m_weight++;
 
 				// Then move it into it's new block for it's new weight
-				this->InsertNode(currentNode);
+				this->InsertNode(pNode);
+
+				// adjust parent accordingly
+				if (isLeaf)
+				{
+					pNode = pNode->m_parent;
+				}
+				else
+				{
+					pNode = previousParent;
+				}
 			}
 
 
-			int getHighestAddress(const int address, const int weight)
+			void SwapWithLeadingLeafNode(Node* currentNode)
 			{
-				BlockMapT::const_iterator blockFound = m_existingQueues.find(weight);
+				Node* highestLeafNode = this->GetHighestLeafNode(currentNode);
+
+				if (highestLeafNode && (highestLeafNode != currentNode ) )
+				{
+					this->SwapNodes(currentNode, highestLeafNode);
+				}
+			}
+
+			Node* GetHighestLeafNode(Node* currentNode)
+			{
+				Node* highestLeafNode = 0;
+
+				BlockMapT::const_iterator blockFound = m_existingQueues.find(currentNode->m_weight);
 				if (blockFound == m_existingQueues.end())
 				{
 					assert(0);
 					throw std::runtime_error("Error: this block doesn't exist yet!");
 				}
 
-				BlockContainerT addressQueue = m_existingQueues[weight];
-				return addressQueue.top();
+				BlockContainerT addressQueue = m_existingQueues[currentNode->m_weight];
+				return addressQueue.HighestLeafNode(currentNode);
 			}
+
+
+			//int getHighestAddress(const int address, const int weight)
+			//{
+			//	BlockMapT::const_iterator blockFound = m_existingQueues.find(weight);
+			//	if (blockFound == m_existingQueues.end())
+			//	{
+			//		assert(0);
+			//		throw std::runtime_error("Error: this block doesn't exist yet!");
+			//	}
+
+			//	BlockContainerT addressQueue = m_existingQueues[weight];
+			//	return addressQueue.top();
+			//}
 
 		private:
 			BlockMapT m_existingQueues;
@@ -199,11 +421,9 @@ namespace ah {
 			Block blocks;
 
 			Node* rootNode = new Node( 256, 0, 0, 0);	// Init NYT (null) is the root node
-			//existingSymbols[0] = rootNode;
 			Node* newNytNode = rootNode;
 			blocks.InsertNode(rootNode);
 			int nextAddress = 255;
-			//bool treeIsEmpty = true;
 
 			// Process the msg string one char at a time
 			for ( const char& symbol : msg) 
@@ -211,7 +431,8 @@ namespace ah {
 				if (DEBUG_MODE)
 					std::cout << "debug = " << symbol << endl;
 
-				Node* currentNode = 0;
+				Node* qNode = 0;
+				Node* leafToIncrement = 0;
 
 				SymbolMapT::const_iterator symbolFound = existingSymbols.find(symbol);
 				if (symbolFound == existingSymbols.end())
@@ -220,7 +441,7 @@ namespace ah {
 					// to new nyt node (as left child) and the new symbol (as right child).
 					Node* oldNytNode = newNytNode;
 					// Creat the two new child nodes and make the oldNytNode their parent
-					Node* newSymbol = new Node(nextAddress--, symbol, 1, oldNytNode);
+					Node* newSymbol = new Node(nextAddress--, symbol, 0, oldNytNode);
 					newNytNode = new Node(nextAddress--, 0, 0, oldNytNode);
 					//existingSymbols[0] = newNytNode;
 					existingSymbols[symbol] = newSymbol;
@@ -231,22 +452,49 @@ namespace ah {
 					blocks.InsertNode(newSymbol);
 					blocks.InsertNode(newNytNode);
 
+					// need to take the oldNytNode off the list of leaf nodes and onto the list
+					// of internal nodes
+					blocks.MakeNodeInternal(oldNytNode);
+
 					//Update the current node to be the old nyt node
-					currentNode = oldNytNode;
+					qNode = oldNytNode;
+					leafToIncrement = newSymbol;
 				}
 				else
 				{
-					currentNode = existingSymbols[symbol];
+					// Else, if the symbol already exists
+					// Swap it with the leading LEAF NODE of its block
+					qNode = existingSymbols[symbol];
+					blocks.SwapWithLeadingLeafNode(qNode);
+
+					if (qNode->m_parent->m_leftChild == newNytNode)
+					{
+						// "Special Case #2" from Vitter's paper
+						leafToIncrement = qNode;
+						qNode = qNode->m_parent;
+
+						if (DEBUG_MODE)
+						{
+							cout << "Special Case # 2 with leafToIncrement = "
+								<< leafToIncrement->m_symbol << " and qNode = "
+								<< qNode->m_symbol << endl;
+						}
+					}
 				}
 
-				assert(currentNode != 0);
+				assert(qNode != 0);
 
-				while( (currentNode != 0) )	// || ( treeIsEmpty ) ) //|| (currentNode != rootNode) ) )
+				while( (qNode != 0) )
 				{
-					blocks.SwitchThenIncrementNodeWeight(currentNode);
-					currentNode = currentNode->m_parent;
-					//treeIsEmpty = false;
+					blocks.SlideAndIncrement(qNode);
 				}
+
+				if (leafToIncrement)
+				{
+					blocks.SlideAndIncrement(leafToIncrement);
+				}
+				leafToIncrement = 0;
+
 
 
 				// TODO Iterate through existingSymbols map and delete all nodes to prevent memory leak!!!
