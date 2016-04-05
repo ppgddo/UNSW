@@ -2,6 +2,8 @@
 #include <iostream>
 #include <string>
 #include <list>
+#include <cassert>
+#include <cmath>
 
 #include "HelperFunctions.h"
 
@@ -26,8 +28,6 @@ namespace ah {
 			std::list<std::string> cmdInputStrings;
 			ParseCmdLine(argc, argv, cmdInputStrings);
 
-			//const string& firstArg(cmdInputStrings.front());
-
 			if ( !cmdInputStrings.empty() && cmdInputStrings.front().compare(string("-s") ) == 0 )
 			{
 				return true;
@@ -45,15 +45,41 @@ namespace ah {
 		void ConvertCharToBinaryString(std::string& binaryStrOut, char charValue)
 		{
 			char binaryDigits[3] = "01";
-			binaryStrOut.resize(8);
 			int remainder;
 
-			for (auto i = 8; i > 0; i--)
+			if(binaryStrOut.size() < 8)
+			{
+				binaryStrOut.resize(8);
+			}
+
+			for (auto pos = 7; pos >= 0; pos--)
 			{
 				remainder = charValue % 2;
 				charValue = charValue / 2;
-				binaryStrOut.at(i - 1) = binaryDigits[remainder];
+				binaryStrOut.at(pos) = binaryDigits[remainder];
 			}
+		}
+
+
+		// It converts the ASCII character into its corresponding binary value 
+		// as a string of '0' and '1'. It does this simply by dividing the input by the 2
+		// which in the default case is 2.
+		char ConvertBinaryStringToChar( const std::string& binaryStr )
+		{
+			char outChar = 0;
+			assert(binaryStr.size() == 8);
+
+			int power = 7;
+			for (const char& nextChar : binaryStr)
+			{
+				if (nextChar == '1')
+				{
+					outChar += pow( 2, power);
+				}
+				power--;
+			}
+
+			return outChar;
 		}
 
 	}

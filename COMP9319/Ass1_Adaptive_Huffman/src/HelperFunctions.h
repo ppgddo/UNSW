@@ -13,6 +13,7 @@ namespace ah {
 
 		
 		void ConvertCharToBinaryString(std::string& output, char input);
+		char ConvertBinaryStringToChar(const std::string& binaryStr);
 
 	}
 }

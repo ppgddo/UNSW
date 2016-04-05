@@ -1,4 +1,4 @@
-// COMP9319_Ass01.cpp : Defines the entry point for the console application.
+// COMP9319_Ass01.cpp : Defines the entry point for the ahdecode console application.
 //
 
 //#include "stdafx.h"
@@ -7,13 +7,28 @@
 #include <iostream>
 #include <string>
 
-using namespace std;
+// Internal headers
+#include "HelperFunctions.h"
+#include "AhEncodeFunctions.h"
 
-int main()
+
+using namespace std;
+using namespace ah::helpers;
+using namespace ah::encode;
+
+
+
+
+int main(int argc, char ** argv)
 {
 
+	bool delimitMode = SetDelimitMode(argc, argv);
 
-	cout << "ah decode" << endl;
+	std::string inputString;
+	while( getline(cin, inputString) )
+	{
+		EncodeOrDecode decoder(inputString, delimitMode, true);
+	}
 
 	return 0;
 }

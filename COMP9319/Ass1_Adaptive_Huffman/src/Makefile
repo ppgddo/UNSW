@@ -19,8 +19,8 @@ AhEncodeMain.o: AhEncodeMain.cpp
 AhEncodeFunctions.o: AhEncodeFunctions.cpp
 	$(CC) $(CFLAGS) AhEncodeFunctions.cpp
        
-ahdecode: AhDecodeMain.o
-	$(CC) AhDecodeMain.o -o ahdecode
+ahdecode: AhDecodeMain.o HelperFunctions.o AhEncodeFunctions.o
+	$(CC) AhDecodeMain.o HelperFunctions.o AhEncodeFunctions.o -o ahdecode
 
 AhDecodeMain.o: AhDecodeMain.cpp
 	$(CC) $(CFLAGS) AhDecodeMain.cpp

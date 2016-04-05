@@ -1,4 +1,4 @@
-// COMP9319_Ass01.cpp : Defines the entry point for the console application.
+// COMP9319_Ass01.cpp : Defines the entry point for the ahencode console application.
 //
 
 //#include "stdafx.h"
@@ -25,9 +25,9 @@ int main(int argc, char ** argv)
 	bool delimitMode = SetDelimitMode(argc, argv);
 
 	std::string inputString;
-	while (cin >> inputString)
+	while (getline(cin, inputString) )
 	{
-		EncodeMsg(inputString, delimitMode);
+		EncodeOrDecode encoder(inputString, delimitMode, false);
 	}
 
 	return 0;

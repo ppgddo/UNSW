@@ -24,6 +24,12 @@ using namespace ah::helpers;
 namespace ah {
 	namespace encode {
 
+		
+
+		//*********************************************************************
+		//	Helper Functions
+		//*********************************************************************
+
 		bool IsLeafNode(Node* node)
 		{
 			if (node->m_leftChild || node->m_rightChild)
@@ -35,6 +41,7 @@ namespace ah {
 				return true;
 			}
 		}
+
 
 		void SwapNodesHelper(Node* &firstNode, Node* &secondNode, vector<Node*>& nodeAddresses)
 		{
@@ -80,6 +87,7 @@ namespace ah {
 			}
 		}
 
+
 		void SlideNodesHelper(Node* &pNode, vector<Node*>& nodeVector, list<Node*>& nodeBlock)
 		{
 			// The special case is if the block only has one internal node, then
@@ -100,6 +108,23 @@ namespace ah {
 				}
 			}
 		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		//*********************************************************************
+		//	Block Class
+		//*********************************************************************
 
 
 
@@ -139,6 +164,7 @@ namespace ah {
 					}
 				}
 
+
 				void RemoveNode(const T& node, bool isLeaf)
 				{
 					if (isLeaf && !m_blockOfLeafNodes.empty() )
@@ -157,18 +183,26 @@ namespace ah {
 					}
 				}
 
-				//const T& top(bool isLeaf)
-				//{
-				//	if (isLeaf)
-				//	{
-				//		return m_blockOfLeafNodes.front();
-				//	}
-				//	else
-				//	{
-				//		//TODO
-				//		assert(0);
-				//	}
-				//}
+
+				Node* HighestNode(const T value, bool isLeaf)
+				{
+					if (isLeaf && !m_blockOfLeafNodes.empty())
+					{
+						return m_blockOfLeafNodes.front();
+					}
+					else if (!m_blockOfInternalNodes.empty())
+					{
+						return m_blockOfInternalNodes.front();
+					}
+					else if (DEBUG_MODE)
+					{
+						assert(0);
+						cout << "Error! Getting highest node when container is empty! isLeaf = "
+							<< isLeaf << endl;
+					}
+
+					return 0;
+				}
 
 
 				void SlideInternalNodesForLeaf(Node* &pNode, vector<Node*>& nodeVector)
@@ -182,11 +216,6 @@ namespace ah {
 					SlideNodesHelper(pNode, nodeVector, m_blockOfLeafNodes);
 				}
 
-
-				Node* HighestLeafNode(const T value)
-				{
-					return m_blockOfLeafNodes.front();
-				}
 
 
 
@@ -377,22 +406,10 @@ namespace ah {
 				}
 
 				BlockContainerT addressQueue = m_existingQueues[currentNode->m_weight];
-				return addressQueue.HighestLeafNode(currentNode);
+				return addressQueue.HighestNode(currentNode, true);
 			}
 
 
-			//int getHighestAddress(const int address, const int weight)
-			//{
-			//	BlockMapT::const_iterator blockFound = m_existingQueues.find(weight);
-			//	if (blockFound == m_existingQueues.end())
-			//	{
-			//		assert(0);
-			//		throw std::runtime_error("Error: this block doesn't exist yet!");
-			//	}
-
-			//	BlockContainerT addressQueue = m_existingQueues[weight];
-			//	return addressQueue.top();
-			//}
 
 		private:
 			BlockMapT m_existingQueues;
@@ -401,8 +418,22 @@ namespace ah {
 
 
 
-		void ConstructSymbolFromTree(Node* startNode, string& outString)
+
+
+
+
+
+
+
+
+		//*********************************************************************
+		//	EncodeOrDecode class
+		//*********************************************************************
+
+		void EncodeOrDecode::ConstructSymbolFromTree(Node* startNode, std::string& outString)
 		{
+			// Construct the huffman code from the current binary tree
+
 			outString.clear();
 			Node* parent = startNode->m_parent;
 
@@ -428,79 +459,191 @@ namespace ah {
 		}
 
 
-
-
-		void EncodeMsg(const string& msg, const bool delimitMode)
+		void EncodeOrDecode::ConstructEncodedMsg(
+			const char& symbol,
+			Node*const newNytNode, const bool symbolFound, const bool delimitMode)
 		{
-			std::string binaryString;
-			std::string TransmittedSignal;
+			// Transmit the current tree before updating it and only send the
+			// symbol if it hasn't already been sent
+			Node* transmitNode = newNytNode;
+			if (symbolFound)
+			{
+				transmitNode = m_existingSymbols[symbol];
+			}
+
+			string symbolFromTree;
+			ConstructSymbolFromTree(transmitNode, symbolFromTree);
+			m_consoleOutput.append(symbolFromTree);
+
+			if (!symbolFound)
+			{
+				// If it is a new symbol transmit it too
+				ConvertCharToBinaryString(m_binaryString, symbol);
+				m_consoleOutput.append(m_binaryString);
+			}
+
+			if (delimitMode)
+			{
+				// If we are in "delimit mode" (i.e. -s command option), add in a space
+				m_consoleOutput.push_back(' ');
+			}
+		}
+
+
+		bool EncodeOrDecode::DecodeSymbolFromTree(char& returnChar)
+		{
+			returnChar = 0;
+			bool returnValue = false;
+
+			if ( m_rootNode == 0 ) 
+			{
+				assert(0);
+				return false;
+			}
+			else if (m_currentDecodingString.empty())
+			{
+				returnChar = m_rootNode->m_symbol;
+				return true;
+			}
+
+			Node* nextNode = m_rootNode;
+
+			for (const char& digit : m_currentDecodingString)
+			{
+				if(digit == '1')
+					nextNode = nextNode->m_rightChild;
+				else
+					nextNode = nextNode->m_leftChild;
+
+				if (nextNode == 0)
+					break;
+				else
+					returnChar = nextNode->m_symbol;
+			}
+
+			//if (nodeCounter == m_currentDecodingString.size() + 1)
+			if (nextNode && IsLeafNode(nextNode) )
+			{
+				// If we have reached a leaf node, we are finished decoding the tree
+				returnValue = true;
+				returnChar = nextNode->m_symbol;
+			}
+
+			return returnValue;
+		}
+
+
+		bool EncodeOrDecode::ConstructDecodedMsg(
+			char& symbol, const bool delimitMode)
+		{
+			if (!DecodeSymbolFromTree(symbol) )
+				return false;
+
+			if (symbol == 0)
+			{
+				// Need to decode the binary reperesentation of the symbol
+				m_decoderState = decodingNewCharacter;
+				m_decoderCharCounter = 0;
+				m_currentDecodingString.clear();
+				return false;
+			}
+
+			m_currentDecodingString.clear();
+
+			return true;
+		}
+
+		EncodeOrDecode::EncodeOrDecode(const std::string& msg, const bool delimitMode, const bool decode)
+		{
+			Block blocks;
+			blocks.InsertNode(m_rootNode);
 
 			if (DEBUG_MODE)
 			{
-				ConvertCharToBinaryString(binaryString, char(msg.front()));
+				ConvertCharToBinaryString(m_binaryString, char(msg.front()));
 
 				std::cout << endl <<  "(Debug Mode ON) ='" << msg << ", binary of first char = "
-					<< binaryString << ", delimit mode = " << delimitMode << std::endl;
+					<< m_binaryString << ", delimit mode = " << delimitMode << std::endl;
 			}
 						
-			// Initialise the variables and create the NYT node as the root.
-			typedef std::unordered_map< char, Node* > SymbolMapT;
-			SymbolMapT existingSymbols;
-			Block blocks;
-
-			Node* rootNode = new Node( 256, 0, 0, 0);	// Init NYT (null) is the root node
-			Node* newNytNode = rootNode;
-			blocks.InsertNode(rootNode);
-			int nextAddress = 255;
+			bool skipNextChar = false;
 
 			// Process the msg string one char at a time
-			for ( const char& symbol : msg) 
+			for ( const char& nextChar : msg) 
 			{
+				if (skipNextChar)
+				{
+					skipNextChar = false;
+					continue;
+				}
+
 				if (DEBUG_MODE)
-					std::cout << "debug = " << symbol << endl;
+					std::cout << "debug = " << nextChar << endl;
 
-				// Transmit the current tree before updating it and only send the
-				// symbol if it hasn't already been sent
-				bool symbolFound = 
-					existingSymbols.find(symbol) != existingSymbols.end();
-				Node* transmitNode = newNytNode;
-				if (symbolFound)
+				bool symbolFound = false;
+
+				char decodedSymbol = nextChar;
+				if (decode)
 				{
-					transmitNode = existingSymbols[symbol];
+					// If we are decoding message
+					m_currentDecodingString.push_back(nextChar);
+
+					if ( m_decoderState == decodingNewCharacter )
+					{
+						// If we are currently decoding a new character
+						if (++m_decoderCharCounter >= 8)
+						{
+							decodedSymbol = ConvertBinaryStringToChar(m_currentDecodingString);
+							m_consoleOutput.push_back(decodedSymbol);
+							m_decoderCharCounter = 0;
+							m_decoderState = decodingTree;
+							m_currentDecodingString.clear();
+							skipNextChar = delimitMode;
+						}
+						else
+						{
+							continue;
+						}
+					}
+					else
+					{
+						// otherwise we are currently decoding the huffman tree
+						bool messageDecoded = ConstructDecodedMsg(
+							decodedSymbol, delimitMode);
+
+						if ( !messageDecoded )
+							continue;
+						else if (decodedSymbol)
+						{
+							m_consoleOutput.push_back(decodedSymbol);
+							symbolFound = true;
+							skipNextChar = delimitMode;
+						}
+					}
 				}
-
-				string symbolFromTree;
-				ConstructSymbolFromTree(transmitNode, symbolFromTree);
-				TransmittedSignal.append(symbolFromTree);
-
-				if (!symbolFound)
+				else
 				{
-					// If it is a new symbol transmit it too
-					ConvertCharToBinaryString(binaryString, symbol);
-					TransmittedSignal.append(binaryString);
-				}
+					// Otherwise we are encoding a message
+					symbolFound = 
+						m_existingSymbols.find(nextChar) != m_existingSymbols.end();
 
-				if (delimitMode)
-				{
-					// If we are in "delimit mode" (i.e. -s command option), add in a space
-					TransmittedSignal.push_back(' ');
+					ConstructEncodedMsg(
+						nextChar, newNytNode, symbolFound, delimitMode);
 				}
 
 				// Now update the tree for new symbol
 				Node* qNode = 0;
 				Node* leafToIncrement = 0;
-
 				
-				if (!symbolFound )
+				if ( m_existingSymbols.find(decodedSymbol) == m_existingSymbols.end() )
 				{
 					// If this symbol is not yet transmitted (nyt), the nyt node will give "birth"
 					// to new nyt node (as left child) and the new symbol (as right child).
 					Node* oldNytNode = newNytNode;
 					// Creat the two new child nodes and make the oldNytNode their parent
-					Node* newSymbol = new Node(nextAddress--, symbol, 0, oldNytNode);
-					newNytNode = new Node(nextAddress--, 0, 0, oldNytNode);
-					//existingSymbols[0] = newNytNode;
-					existingSymbols[symbol] = newSymbol;
+					Node* newSymbol = new Node(m_nextAddress--, decodedSymbol, 0, oldNytNode);
+					newNytNode = new Node(m_nextAddress--, 0, 0, oldNytNode);
+					m_existingSymbols[decodedSymbol] = newSymbol;
 					oldNytNode->m_rightChild = newSymbol;
 					oldNytNode->m_leftChild = newNytNode;
 
@@ -520,7 +663,7 @@ namespace ah {
 				{
 					// Else, if the symbol already exists
 					// Swap it with the leading LEAF NODE of its block
-					qNode = existingSymbols[symbol];
+					qNode = m_existingSymbols[decodedSymbol];
 					blocks.SwapWithLeadingLeafNode(qNode);
 
 					if (qNode->m_parent->m_leftChild == newNytNode)
@@ -554,7 +697,7 @@ namespace ah {
 
 			}
 
-			cout << TransmittedSignal << endl;
+			cout << m_consoleOutput << endl;
 		}
 
 
