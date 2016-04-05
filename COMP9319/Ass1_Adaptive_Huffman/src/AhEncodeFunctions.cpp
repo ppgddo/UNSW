@@ -569,6 +569,8 @@ namespace ah {
 			bool skipNextChar = false;
 
 			// Process the msg string one char at a time
+			const std::size_t messageSize = msg.size();
+			std::size_t messageCounter = 0;
 			for ( const char& nextChar : msg) 
 			{
 				if (skipNextChar)
@@ -627,8 +629,13 @@ namespace ah {
 					symbolFound = 
 						m_existingSymbols.find(nextChar) != m_existingSymbols.end();
 
+					// If this is the last character in message, don't put in a trailing character
+					bool putInSpace = delimitMode;
+					if (++messageCounter == messageSize)
+						putInSpace = false;
+
 					ConstructEncodedMsg(
-						nextChar, newNytNode, symbolFound, delimitMode);
+						nextChar, newNytNode, symbolFound, putInSpace);
 				}
 
 				// Now update the tree for new symbol
