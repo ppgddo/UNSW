@@ -1,8 +1,6 @@
 // COMP9319_Ass01.cpp : Defines the entry point for the ahdecode console application.
 //
 
-//#include "stdafx.h"
-
 #include <stdio.h>
 #include <iostream>
 #include <string>

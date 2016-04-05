@@ -1,7 +1,6 @@
 // COMP9319_Ass01.cpp : Defines the entry point for the ahencode console application.
 //
 
-//#include "stdafx.h"
 
 #include <stdio.h>
 #include <iostream>
