@@ -1,3 +1,5 @@
+Assignement 1 - Tim Hale (z2273160)
+
 I have put in a fair amount of comments in my source code. Some of it 
 is in the "HelperFunctions.cpp" source file, but most of which is in the 
 "AhEncodeFunctions.cpp" file, which has the bulk of the classes in it.
