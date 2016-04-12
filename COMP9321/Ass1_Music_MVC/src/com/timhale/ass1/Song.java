@@ -10,27 +10,29 @@ package com.timhale.ass1;
 
 public class Song {
 	
-	private String title;
-	private String artist;
-	private String album;
-	private String genre;
-	private String publisher;
-	private String year;
-	private String price;
-	private String id;
+	private final String title;
+	private final String artist;
+	private final String price;
+	private final String songId;
+	private final Album album;
+	private final String albumTitle;
+	private final String genre;
+	private final String publisher;
+	private final String year;
 	
 	
-	public Song(String title, String artist, String album, String genre, String publisher, String year,
-			String price, String id) {
+	public Song(final String title, final String artist, 
+			final String price, final String songId, final Album album ) {
 		super();
 		this.title = title;
 		this.artist = artist;
-		this.album = album;
-		this.genre = genre;
-		this.publisher = publisher;
-		this.year = year;
 		this.price = price;
-		this.id = id;
+		this.songId = songId;
+		this.album = album;
+		this.albumTitle = album.getTitle();
+		this.genre = album.getGenre();
+		this.publisher = album.getPublisher();
+		this.year = album.getYear();
 	}
 
 
@@ -44,8 +46,23 @@ public class Song {
 	}
 
 
-	public String getAlbum() {
+	public String getPrice() {
+		return price;
+	}
+
+
+	public String getSongId() {
+		return songId;
+	}
+
+
+	public Album getAlbum() {
 		return album;
+	}
+
+	
+	public String getAlbumTitle() {
+		return albumTitle;
 	}
 
 
@@ -63,57 +80,8 @@ public class Song {
 		return year;
 	}
 
-
-	public String getPrice() {
-		return price;
-	}
-
-	
-	public String getId() {
-		return id;
-	}
-
-
-	public void setTitle(String title) {
-		this.title = title;
-	}
-
-
-	public void setArtist(String artist) {
-		this.artist = artist;
-	}
-
-
-	public void setAlbum(String album) {
-		this.album = album;
-	}
-
-
-	public void setGenre(String genre) {
-		this.genre = genre;
-	}
-
-
-	public void setPublisher(String publisher) {
-		this.publisher = publisher;
-	}
-
-
-	public void setYear(String year) {
-		this.year = year;
-	}
-
-
-	public void setPrice(String price) {
-		this.price = price;
-	}
 	
 	
-	public void setId(String id) {
-		this.id = id;
-	}
-	
-	
-
-
 }
+
+

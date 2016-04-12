@@ -13,6 +13,8 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.xml.sax.InputSource;
 
+import com.timhale.ass1.MusicXmlData.SearchMode;
+
 /**
  * Servlet implementation class ControllerServlet
  */
@@ -64,15 +66,12 @@ public class ControllerServlet extends HttpServlet {
 			case "SEARCH":
 				doSearch(request, response);
 				break;
-				
 			case "RESULTS":
 				showResullts(request, response);
 				break;
-
 			case "CART":
 				shoppingCart(request, response);
 				break;
-				
 			default:
 				doSearch(request, response);
 			}
@@ -80,6 +79,8 @@ public class ControllerServlet extends HttpServlet {
 		catch (Exception exc) 
 		{
 			// TODO Handle this exception better!!
+			System.out.println("Error: Controller Servlet got the following error: " +
+					exc.getMessage() );
 			doSearch(request, response);
 		}
 	}
@@ -131,31 +132,78 @@ public class ControllerServlet extends HttpServlet {
 
 
 	private void showResullts(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		// Get data
-		// TODO: get this from XML file
-		
+
 		// get the search text from form data
 		String searchString = request.getParameter("searchText");
-		
-		// TODO do a search for the search string
-		
-		//String[] artist = {searchString, "Sting", "Tim Hale", "Cia", "U2"};
-		//request.setAttribute("artist_list", artist);
-		
-		// TODO remove this test code
-		List<Song> songList = m_musicData.GetRandomSongs(10);
-		request.setAttribute("SONG_LIST", songList);
+		String searchOption = request.getParameter("searchOption");
+		boolean noMatchesFound = false;
 
+		// Do the chosen search option:
+		switch (searchOption) 
+		{
+			case "Song":
+			{
+				List<Song> songList = m_musicData.SearchSongs(searchString, SearchMode.TITLE);
+				if( songList == null || songList.isEmpty() )
+					noMatchesFound = true;
+				else
+					request.setAttribute("SONG_LIST", songList);
+				break;
+			}
+			case "Album":
+			{
+				List<Album> albumList = m_musicData.SearchAlbums(searchString, SearchMode.TITLE);
+				if( albumList == null || albumList.isEmpty() )
+					noMatchesFound = true;
+				else
+					request.setAttribute("ALBUM_LIST", albumList);
+				break;
+			}
+			case "Artist":
+			{
+				List<Song> songList = m_musicData.SearchSongs(searchString, SearchMode.ARTIST);
+				List<Album> albumList = m_musicData.SearchAlbums(searchString, SearchMode.ARTIST);
+				if( ( songList == null || songList.isEmpty() ) && ( albumList == null || albumList.isEmpty() ) )
+				{
+					noMatchesFound = true;
+				}
+				else
+				{
+					request.setAttribute("SONG_LIST", songList);
+					request.setAttribute("ALBUM_LIST", albumList);
+				}
+				break;
+			}
+			case "Anything":
+			{
+				List<Song> songList = m_musicData.SearchSongs(searchString, SearchMode.ALL);
+				List<Album> albumList = m_musicData.SearchAlbums(searchString, SearchMode.ALL);
+				if( ( songList == null || songList.isEmpty() ) && ( albumList == null || albumList.isEmpty() ) )
+				{
+					noMatchesFound = true;
+				}
+				else
+				{
+					request.setAttribute("SONG_LIST", songList);
+					request.setAttribute("ALBUM_LIST", albumList);
+				}
+				break;
+			}
+			default:
+			{
+				noMatchesFound = true;
+			}
+		}
 		
-		
-		
-		// get request dispatcher
-		RequestDispatcher dispatcher = 
-					request.getRequestDispatcher("/results.jsp");
+		// get required request dispatcher
+		RequestDispatcher dispatcher;
+		if( noMatchesFound )
+			dispatcher = request.getRequestDispatcher("/results_no_matches.jsp");
+		else
+			dispatcher = request.getRequestDispatcher("/results.jsp");
 			
 		// forward the request to JSP
 		dispatcher.forward(request, response);
-
 	}
 
 
