@@ -3,10 +3,8 @@
 <html>
 <body>
 	<div>
-		<h2>Search results</h2>
-		
 	<p>
-		<h3>Sorry, no matching datasets found! Try a different search string.</h3>
+		<h4> ${ERROR_MESSAGE} </h4>
 	</p>
 	
 	</div>

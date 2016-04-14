@@ -2,6 +2,7 @@ package com.timhale.ass1;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -28,18 +29,21 @@ public class MusicXmlData {
 	    TITLE, ARTIST, ALL
 	}
 	
-	//private Document document;
-	private List<Album> albumList;
-	private List<Song> songList;
+	// private data;
+	private HashMap<String, Album> albumDataMap;
+	private HashMap<String, Song> songDataMap;
+	private List<Song> songDataList;
 
+	// public functions
 	
 	public MusicXmlData(InputSource xmlFile)
 	throws ParserConfigurationException, SAXException, IOException
 	{
 		super();
 		
-		songList = new ArrayList<Song>();
-		albumList = new LinkedList<Album>();
+		songDataList = new ArrayList<Song>();
+		albumDataMap = new HashMap<String, Album>();
+		songDataMap = new HashMap<String, Song>();
 		
 		
 		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -103,7 +107,8 @@ public class MusicXmlData {
 							}
 							
 							Song nextSong = ParseSong(songChildNodes, album);
-							songList.add(nextSong);
+							songDataList.add(nextSong);
+							songDataMap.put(nextSong.getSongId(), nextSong );
 							albumSongList.add(nextSong);
 							break;
 						}
@@ -112,7 +117,7 @@ public class MusicXmlData {
 				
 				album.setPrice(price);
 				album.setSongList(albumSongList);
-				albumList.add(album);
+				albumDataMap.put(id, album);
 			}
 			catch (Exception e)
 			{
@@ -175,7 +180,7 @@ public class MusicXmlData {
 		HashSet<String> songsChosenMap = new HashSet<String>();
 				
 		// Iterate through each song and search the required fields
-		for (Song nextSong : songList) 
+		for (Song nextSong : songDataList) 
 		{
 			// perform a case insensitive search - (?i) option enables this 
 			boolean stringFound = false;
@@ -218,7 +223,7 @@ public class MusicXmlData {
 		HashSet<String> albumsChosenMap = new HashSet<String>();
 		
 		// Iterate through each album and search the required fields
-		for (Album nextAlbum : albumList) 
+		for (Album nextAlbum : albumDataMap.values() ) 
 		{
 			// perform a case insensitive search - (?i) option enables this
 			boolean stringFound = false;
@@ -266,8 +271,8 @@ public class MusicXmlData {
 		
 		while( songCounter != numberOfSongs )
 		{
-			int x = ran.nextInt(songList.size() );
-			Song nextSong = songList.get(x);
+			int x = ran.nextInt(songDataList.size() );
+			Song nextSong = songDataList.get(x);
 			if( !songsChosenMap.contains(nextSong.getSongId() ) )
 			{
 				songsChosenMap.add(nextSong.getSongId() );
@@ -277,5 +282,23 @@ public class MusicXmlData {
 		}
 		
 		return returnSongs;
+	}
+
+
+	public Album GetAlbum(String albumId) 
+	{
+		if( albumDataMap.containsKey(albumId) )
+			return albumDataMap.get(albumId);
+		else
+			return null;
+	}
+
+
+	public Song GetSong(String songId) 
+	{
+		if( songDataMap.containsKey(songId) )
+			return songDataMap.get(songId);
+		else
+			return null;
 	}
 }

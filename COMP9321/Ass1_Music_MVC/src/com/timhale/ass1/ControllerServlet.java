@@ -1,6 +1,8 @@
 package com.timhale.ass1;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 
 import javax.servlet.RequestDispatcher;
@@ -19,10 +21,13 @@ import com.timhale.ass1.MusicXmlData.SearchMode;
  * Servlet implementation class ControllerServlet
  */
 @WebServlet(description = "Controller Servlet for the Music Store in Ass1", urlPatterns = { "/ControllerServlet" })
-public class ControllerServlet extends HttpServlet {
+public class ControllerServlet extends HttpServlet 
+{
+	// private data;
 	private static final long serialVersionUID = 1L;
-
-	private MusicXmlData m_musicData;
+	private HashMap<String,Album> albumCart;
+	private HashMap<String,Song> songCart;
+	private MusicXmlData musicData;
     
 	@Override
 	public void init() throws ServletException {
@@ -34,7 +39,9 @@ public class ControllerServlet extends HttpServlet {
 			ServletContext context = getServletContext();
 			InputSource xmlFile = new InputSource(context.getResourceAsStream("/WEB-INF/musicDb.xml"));
 		
-			m_musicData = new MusicXmlData(xmlFile);
+			albumCart = new HashMap<String, Album>();
+			songCart = new HashMap<String, Song>();
+			musicData = new MusicXmlData(xmlFile);
 		}
 		catch (Exception exc) {
 			throw new ServletException(exc);
@@ -72,6 +79,9 @@ public class ControllerServlet extends HttpServlet {
 			case "CART":
 				shoppingCart(request, response);
 				break;
+			case "REMOVE":
+				removeFromShoppingCart(request, response);
+				break;
 			default:
 				doSearch(request, response);
 			}
@@ -86,38 +96,172 @@ public class ControllerServlet extends HttpServlet {
 	}
 
 	
+	private void removeFromShoppingCart(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException 
+	{
+		// Remove the selected songs and albums from the Cart
+		
+		// see which check boxes are checked
+		String[] songCheckboxList= request.getParameterValues("removeSong");
+		String[] albumCheckboxList= request.getParameterValues("removeAlbum");
+		
+		if( songCheckboxList != null )
+		{
+			for( String songId : songCheckboxList )
+			{
+				songCart.remove(songId);
+			}
+		}
+		
+		if( albumCheckboxList != null )
+		{
+			for( String albumId : albumCheckboxList )
+			{
+				albumCart.remove(albumId);
+			}
+		}
+
+		// Once all duplicates are removed, calc the total price and construct the
+		// list of songs and album to add to the cart page
+		float totalPrice = 0;
+		List<Album> albumList = new LinkedList<Album>();
+		for( Album album: albumCart.values() )
+		{
+			totalPrice += Float.valueOf( album.getPrice() );
+			albumList.add(album);
+		}
+		
+		List<Song> songList = new LinkedList<Song>();
+		for( Song song: songCart.values() )
+		{
+			totalPrice += Float.valueOf( song.getPrice() );
+			songList.add(song);
+		}
+
+		// Set the total price attribute
+		request.setAttribute("TOTAL_PRICE", totalPrice);
+		
+		// Set the list of songs and albums attributes
+		request.setAttribute("SONG_LIST", songList);
+		request.setAttribute("ALBUM_LIST", albumList);
+		
+		// get request dispatcher
+		RequestDispatcher dispatcher = 
+					request.getRequestDispatcher("/shopping_cart.jsp");
+		
+		if( songList.isEmpty() && albumList.isEmpty() )
+		{
+			 // if both list at empty, show the "shopping chart is empty" page
+			request.setAttribute("ERROR_MESSAGE", 
+					"Shopping chart is now empty.");
+			dispatcher = request.getRequestDispatcher("/results_no_matches.jsp");
+		}
+			
+		// forward the request to JSP
+		dispatcher.forward(request, response);
+	}
+
+
+
 	private void shoppingCart(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
 		// see which check boxes are checked
-		String[] checkboxNamesList= request.getParameterValues("add");
+		String[] songCheckboxList= request.getParameterValues("addSong");
+		String[] albumCheckboxList= request.getParameterValues("addAlbum");
+		List<String> dublicateSongs = new LinkedList<String>();
 		
-
 		
-		for (int i = 0; i < checkboxNamesList.length; i++) 
+		// Search for duplicate songs and songs that already appear on 
+		// an album.
+		// IMPORTANT! It is essential that you check the songs first, because if
+		// a song is chosen that is already on an album, then the 
+		// "RemoveSongsAlreadyOnAlbum()"
+		// function below will tidy it up and remove it, so it needs to be called
+		// after all the checked songs are added!
+		
+		if( songCheckboxList != null )
 		{
+			for( String songId : songCheckboxList )
+			{
+				Song selectedSong = musicData.GetSong(songId);
+				if( songCart.containsKey(songId) )
+				{
+					dublicateSongs.add(selectedSong.getTitle() );
+				}
+				else
+				{
+					// Also check to see if this song is already on a selected album
+					if( (selectedSong != null) &&  !albumCart.containsKey( selectedSong.getAlbum().getId() ) )
+					{
+						songCart.put(songId,  selectedSong);
+					}
+					else
+					{
+						dublicateSongs.add(selectedSong.getTitle() );
+					}
+				}
+			}
+		}
+
+		
+		List<String> dublicateAlbums = new LinkedList<String>();
+		if( albumCheckboxList != null)
+		{
+			for( String albumId : albumCheckboxList )
+			{
+				Album selectedAlbum = musicData.GetAlbum(albumId);
+				if( albumCart.containsKey(albumId) )
+				{
+					dublicateAlbums.add(selectedAlbum.getTitle() );
+				}
+				else
+				{
+					//remove any song that this album contains from  the songCart
+					dublicateSongs.addAll( RemoveSongsAlreadyOnAlbum( selectedAlbum ) );
+					albumCart.put(albumId, selectedAlbum );
+				}
+			}
 			
-			System.out.println(checkboxNamesList[i]);
+		}
 
-			/*
-		    String myCheckBoxValue = request.getParameterValues(checkboxNamesList[i]);
+		
+		// Once all duplicates are removed, calc the total price and construct the
+		// list of songs and album to add to the cart page
+		float totalPrice = 0;
+		List<Album> albumList = new LinkedList<Album>();
+		for( Album album: albumCart.values() )
+		{
+			totalPrice += Float.valueOf( album.getPrice() );
+			albumList.add(album);
+		}
+		
+		List<Song> songList = new LinkedList<Song>();
+		for( Song song: songCart.values() )
+		{
+			totalPrice += Float.valueOf( song.getPrice() );
+			songList.add(song);
+		}
 
-		    // if null, it means checkbox is not in request, so unchecked 
-		    if (myCheckBoxValue == null)
-		    	System.out.println(checkboxNamesList[i] + "=unchecked");
+		// Set the total price attribute
+		request.setAttribute("TOTAL_PRICE", totalPrice);
+		
+		// Set the list of songs and albums attributes
+		request.setAttribute("SONG_LIST", songList);
+		request.setAttribute("ALBUM_LIST", albumList);
 
-		    // if is there, it means checkbox checked
-		    else
-		    	System.out.println(checkboxNamesList[i] + "=checked");
-		    	*/
-
-		}		
+		// Add to a list of the duplicate album and songs
+		if( !dublicateAlbums.isEmpty() )
+		{
+			String duplicateItemMsg = "The following albums were removed because they were already on in the cart: " 
+					+ dublicateAlbums.toString();
+			request.setAttribute("DUPLICATE_ALBUM", duplicateItemMsg);
+		}
 		
-		
-		
-		
-		
-		
-		
+		if( !dublicateSongs.isEmpty() )
+		{
+			String duplicateItemMsg = "The following songs were removed because they were either already on in the cart "  
+					+ "or on an album in the cart: " + dublicateSongs.toString();
+			request.setAttribute("DUPLICATE_SONG", duplicateItemMsg);
+		}
 		
 		// get request dispatcher
 		RequestDispatcher dispatcher = 
@@ -125,10 +269,26 @@ public class ControllerServlet extends HttpServlet {
 			
 		// forward the request to JSP
 		dispatcher.forward(request, response);
-		
 	}
 
 
+	private List<String> RemoveSongsAlreadyOnAlbum( Album selectedAlbum ) 
+	{
+		List<String> dublicateSongs = new LinkedList<String>();
+		List<Song> albumSongList = selectedAlbum.getSongList();
+		
+		for( Song song : albumSongList )
+		{
+			String songId = song.getSongId();
+			if( songCart.containsKey( songId ) )
+			{
+				dublicateSongs.add( song.getTitle() );
+				songCart.remove(songId);
+			}
+		}
+		
+		return dublicateSongs;
+	}
 
 
 	private void showResullts(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -143,7 +303,7 @@ public class ControllerServlet extends HttpServlet {
 		{
 			case "Song":
 			{
-				List<Song> songList = m_musicData.SearchSongs(searchString, SearchMode.TITLE);
+				List<Song> songList = musicData.SearchSongs(searchString, SearchMode.TITLE);
 				if( songList == null || songList.isEmpty() )
 					noMatchesFound = true;
 				else
@@ -152,7 +312,7 @@ public class ControllerServlet extends HttpServlet {
 			}
 			case "Album":
 			{
-				List<Album> albumList = m_musicData.SearchAlbums(searchString, SearchMode.TITLE);
+				List<Album> albumList = musicData.SearchAlbums(searchString, SearchMode.TITLE);
 				if( albumList == null || albumList.isEmpty() )
 					noMatchesFound = true;
 				else
@@ -161,8 +321,8 @@ public class ControllerServlet extends HttpServlet {
 			}
 			case "Artist":
 			{
-				List<Song> songList = m_musicData.SearchSongs(searchString, SearchMode.ARTIST);
-				List<Album> albumList = m_musicData.SearchAlbums(searchString, SearchMode.ARTIST);
+				List<Song> songList = musicData.SearchSongs(searchString, SearchMode.ARTIST);
+				List<Album> albumList = musicData.SearchAlbums(searchString, SearchMode.ARTIST);
 				if( ( songList == null || songList.isEmpty() ) && ( albumList == null || albumList.isEmpty() ) )
 				{
 					noMatchesFound = true;
@@ -176,8 +336,8 @@ public class ControllerServlet extends HttpServlet {
 			}
 			case "Anything":
 			{
-				List<Song> songList = m_musicData.SearchSongs(searchString, SearchMode.ALL);
-				List<Album> albumList = m_musicData.SearchAlbums(searchString, SearchMode.ALL);
+				List<Song> songList = musicData.SearchSongs(searchString, SearchMode.ALL);
+				List<Album> albumList = musicData.SearchAlbums(searchString, SearchMode.ALL);
 				if( ( songList == null || songList.isEmpty() ) && ( albumList == null || albumList.isEmpty() ) )
 				{
 					noMatchesFound = true;
@@ -198,9 +358,15 @@ public class ControllerServlet extends HttpServlet {
 		// get required request dispatcher
 		RequestDispatcher dispatcher;
 		if( noMatchesFound )
+		{
+			request.setAttribute("ERROR_MESSAGE", 
+					"Sorry, no matching datasets found! Try a different search string.");
 			dispatcher = request.getRequestDispatcher("/results_no_matches.jsp");
+		}
 		else
+		{
 			dispatcher = request.getRequestDispatcher("/results.jsp");
+		}
 			
 		// forward the request to JSP
 		dispatcher.forward(request, response);
@@ -216,7 +382,7 @@ public class ControllerServlet extends HttpServlet {
 					request.getRequestDispatcher("/search.jsp");
 
 		// Get the list of 10 random songs
-		List<Song> songList = m_musicData.GetRandomSongs(10);
+		List<Song> songList = musicData.GetRandomSongs(10);
 		request.setAttribute("SONG_LIST", songList);
 		
 		// forward the request to JSP

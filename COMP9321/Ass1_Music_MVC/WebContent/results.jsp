@@ -35,7 +35,7 @@
 					<td> ${tempSong.publisher} </td>
 					<td> ${tempSong.year} </td>
 					<td> ${tempSong.price} </td>
-					<td> <input type="checkbox" name="add" value=${tempSong.songId}/> </td>
+					<td> <input type="checkbox" name="addSong" value=${tempSong.songId} > </td>
 					</tr>
 				
 				</c:forEach>
@@ -65,14 +65,10 @@
 					<td> ${tempAlbum.publisher} </td>
 					<td> ${tempAlbum.year} </td>
 					<td> ${tempAlbum.price} </td>
-					<td> <input type="checkbox" name="add" value=${tempAlbum.id}/> </td>
+					<td> <input type="checkbox" name="addAlbum" value=${tempAlbum.id} > </td>
 					</tr>
-				
 				</c:forEach>
-				
 			</table>
-
-
 			
 			<p>
 				<input type="submit" value="Add to Cart" class="save" />
@@ -80,15 +76,10 @@
 			
 		</form>
 	</div>
-	
-	
+		
 	<p>
 		<a href="ControllerServlet">Back to search</a>
 	</p>
-	
-	
-	
-	
 
 </body>
 </html>
