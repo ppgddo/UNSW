@@ -82,6 +82,15 @@ public class ControllerServlet extends HttpServlet
 			case "REMOVE":
 				removeFromShoppingCart(request, response);
 				break;
+			case "CHECKOUT":
+				checkout(request, response);
+				break;
+			case "CONFRIM":
+				confrim(request, response, true);
+				break;
+			case "CANCEL":
+				confrim(request, response, false);
+				break;
 			default:
 				doSearch(request, response);
 			}
@@ -96,6 +105,58 @@ public class ControllerServlet extends HttpServlet
 	}
 
 	
+	private void confrim(HttpServletRequest request, HttpServletResponse response, boolean confirm)  
+			throws ServletException, IOException 
+	{
+		// Reset all of the item data
+		albumCart.clear();
+		songCart.clear();
+		
+		RequestDispatcher dispatcher = 
+				request.getRequestDispatcher("/just_msg_page.jsp");
+	
+		if( confirm)
+		{
+			request.setAttribute("MESSAGE", 
+					"Thank Your for Purchasing.");
+		}
+		else
+		{
+			request.setAttribute("MESSAGE", 
+					"Thank Your for Shopping.");
+		}
+
+		// forward the request to JSP
+		dispatcher.forward(request, response);
+		
+	}
+
+
+
+
+	private void checkout(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException 
+	{
+		boolean noSongsOrAlbumsOnList = GetCartListAndTotalPrice(request);
+		
+		// get request dispatcher
+		RequestDispatcher dispatcher = 
+					request.getRequestDispatcher("/checkout.jsp");
+		
+		if(noSongsOrAlbumsOnList )
+		{
+			 // if both list at empty, show the "Chart is empty" page
+			request.setAttribute("MESSAGE", 
+					"Chart is empty!");
+			dispatcher = request.getRequestDispatcher("/msg_and_back_to_search.jsp");
+		}
+			
+		// forward the request to JSP
+		dispatcher.forward(request, response);
+	}
+
+
+
+
 	private void removeFromShoppingCart(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException 
 	{
 		// Remove the selected songs and albums from the Cart
@@ -122,38 +183,18 @@ public class ControllerServlet extends HttpServlet
 
 		// Once all duplicates are removed, calc the total price and construct the
 		// list of songs and album to add to the cart page
-		float totalPrice = 0;
-		List<Album> albumList = new LinkedList<Album>();
-		for( Album album: albumCart.values() )
-		{
-			totalPrice += Float.valueOf( album.getPrice() );
-			albumList.add(album);
-		}
-		
-		List<Song> songList = new LinkedList<Song>();
-		for( Song song: songCart.values() )
-		{
-			totalPrice += Float.valueOf( song.getPrice() );
-			songList.add(song);
-		}
-
-		// Set the total price attribute
-		request.setAttribute("TOTAL_PRICE", totalPrice);
-		
-		// Set the list of songs and albums attributes
-		request.setAttribute("SONG_LIST", songList);
-		request.setAttribute("ALBUM_LIST", albumList);
+		boolean noSongsOrAlbumsOnList = GetCartListAndTotalPrice(request);
 		
 		// get request dispatcher
 		RequestDispatcher dispatcher = 
 					request.getRequestDispatcher("/shopping_cart.jsp");
 		
-		if( songList.isEmpty() && albumList.isEmpty() )
+		if(noSongsOrAlbumsOnList )
 		{
-			 // if both list at empty, show the "shopping chart is empty" page
-			request.setAttribute("ERROR_MESSAGE", 
-					"Shopping chart is now empty.");
-			dispatcher = request.getRequestDispatcher("/results_no_matches.jsp");
+			 // if both list at empty, show the "Chart is empty" page
+			request.setAttribute("MESSAGE", 
+					"Chart is empty!");
+			dispatcher = request.getRequestDispatcher("/msg_and_back_to_search.jsp");
 		}
 			
 		// forward the request to JSP
@@ -220,10 +261,47 @@ public class ControllerServlet extends HttpServlet
 					albumCart.put(albumId, selectedAlbum );
 				}
 			}
-			
 		}
-
 		
+		//GetCartListAndTotalPrice(request);
+		boolean noSongsOrAlbumsOnList = GetCartListAndTotalPrice(request);
+		
+		// get request dispatcher
+		RequestDispatcher dispatcher = 
+					request.getRequestDispatcher("/shopping_cart.jsp");
+		
+		if(noSongsOrAlbumsOnList )
+		{
+			 // if both list at empty, show the "Chart is empty" page
+			request.setAttribute("MESSAGE", 
+					"Chart is empty!");
+			dispatcher = request.getRequestDispatcher("/msg_and_back_to_search.jsp");
+		}
+		else
+		{
+			// Add to a list of the duplicate album and songs
+			if( !dublicateAlbums.isEmpty() )
+			{
+				String duplicateItemMsg = "The following albums were removed because they were already on in the cart: " 
+						+ dublicateAlbums.toString();
+				request.setAttribute("DUPLICATE_ALBUM", duplicateItemMsg);
+			}
+			
+			if( !dublicateSongs.isEmpty() )
+			{
+				String duplicateItemMsg = "The following songs were removed because they were either already on in the cart "  
+						+ "or on an album in the cart: " + dublicateSongs.toString();
+				request.setAttribute("DUPLICATE_SONG", duplicateItemMsg);
+			}
+		}
+			
+		// forward the request to JSP
+		dispatcher.forward(request, response);
+	}
+
+
+	private boolean GetCartListAndTotalPrice(HttpServletRequest request) 
+	{
 		// Once all duplicates are removed, calc the total price and construct the
 		// list of songs and album to add to the cart page
 		float totalPrice = 0;
@@ -247,29 +325,11 @@ public class ControllerServlet extends HttpServlet
 		// Set the list of songs and albums attributes
 		request.setAttribute("SONG_LIST", songList);
 		request.setAttribute("ALBUM_LIST", albumList);
-
-		// Add to a list of the duplicate album and songs
-		if( !dublicateAlbums.isEmpty() )
-		{
-			String duplicateItemMsg = "The following albums were removed because they were already on in the cart: " 
-					+ dublicateAlbums.toString();
-			request.setAttribute("DUPLICATE_ALBUM", duplicateItemMsg);
-		}
 		
-		if( !dublicateSongs.isEmpty() )
-		{
-			String duplicateItemMsg = "The following songs were removed because they were either already on in the cart "  
-					+ "or on an album in the cart: " + dublicateSongs.toString();
-			request.setAttribute("DUPLICATE_SONG", duplicateItemMsg);
-		}
-		
-		// get request dispatcher
-		RequestDispatcher dispatcher = 
-					request.getRequestDispatcher("/shopping_cart.jsp");
-			
-		// forward the request to JSP
-		dispatcher.forward(request, response);
+		return (songList.isEmpty() && albumList.isEmpty() );
 	}
+
+
 
 
 	private List<String> RemoveSongsAlreadyOnAlbum( Album selectedAlbum ) 
@@ -359,9 +419,9 @@ public class ControllerServlet extends HttpServlet
 		RequestDispatcher dispatcher;
 		if( noMatchesFound )
 		{
-			request.setAttribute("ERROR_MESSAGE", 
-					"Sorry, no matching datasets found! Try a different search string.");
-			dispatcher = request.getRequestDispatcher("/results_no_matches.jsp");
+			request.setAttribute("MESSAGE", 
+					"Sorry, no matching datasets found! Try different search string.");
+			dispatcher = request.getRequestDispatcher("/msg_and_cart_link.jsp");
 		}
 		else
 		{

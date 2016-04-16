@@ -4,17 +4,13 @@
 <body>
 	<div>
 	<p>
-		<h4> ${ERROR_MESSAGE} </h4>
+		<h4> ${MESSAGE} </h4>
 	</p>
 	
 	</div>
 	<p>
 		<a href="ControllerServlet">Back to search</a>
 	</p>
-	
-	
-	
-	
 
 </body>
 </html>

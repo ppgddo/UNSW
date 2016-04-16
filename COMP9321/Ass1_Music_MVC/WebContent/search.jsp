@@ -9,22 +9,23 @@
 </head>
 
 <body>
+	<img src="spinning-records.jpg"/>
+
 	<div>
 		<div>
-			<h2>Welcome to Music Store</h2>
+			<h2>Welcome to Sir Bling's Music Store</h2>
 		</div>
 	</div>
 	
 	<div>
 		<h3>Search</h3>
 		
-		<form action="ControllerServlet" method="GET">
-		
-			<input type="hidden" name="control_cmd" value="RESULTS" />
+		<table>
+			<tbody>
+				<form action="ControllerServlet" method="GET">
+				
+					<input type="hidden" name="control_cmd" value="RESULTS" />
 
-			<table>
-				<tbody>
-					<tr>
 						<td><label>Search Text:</label></td>
 						<td><input type="text" name="searchText" 
 								   value="" /></td>
@@ -36,16 +37,18 @@
 							    <option value="Song">Songs</option>
 						  	</select>
 						</td>
-					</tr>
-					
-					<tr>
+
 						<td><label></label></td>
 						<td><input type="submit" value="Search" class="save" /></td>
-					</tr>
-					
-				</tbody>
-			</table>
-		</form>
+				</form>
+
+				<form action="ControllerServlet" method="GET">
+				
+					<input type="hidden" name="control_cmd" value="CART" />
+						<td><input type="submit" value="Go to Shopping Cart" class="save" /></td>
+				</form>
+			</tbody>
+		</table>
 	</div>
 
 		
