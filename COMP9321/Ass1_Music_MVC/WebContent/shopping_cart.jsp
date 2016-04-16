@@ -79,6 +79,7 @@
 				</table>
 				<h4> ${DUPLICATE_ALBUM} </h4>
 				<h4> ${DUPLICATE_SONG} </h4>
+				<h4> ${SONG_ON_ALBUM} </h4>
 			</p>	
 			
 			<p>

@@ -209,41 +209,10 @@ public class ControllerServlet extends HttpServlet
 		String[] songCheckboxList= request.getParameterValues("addSong");
 		String[] albumCheckboxList= request.getParameterValues("addAlbum");
 		List<String> dublicateSongs = new LinkedList<String>();
+		List<String> songsAlreadyOnAlbums = new LinkedList<String>();
 		
-		
-		// Search for duplicate songs and songs that already appear on 
-		// an album.
-		// IMPORTANT! It is essential that you check the songs first, because if
-		// a song is chosen that is already on an album, then the 
-		// "RemoveSongsAlreadyOnAlbum()"
-		// function below will tidy it up and remove it, so it needs to be called
-		// after all the checked songs are added!
-		
-		if( songCheckboxList != null )
-		{
-			for( String songId : songCheckboxList )
-			{
-				Song selectedSong = musicData.GetSong(songId);
-				if( songCart.containsKey(songId) )
-				{
-					dublicateSongs.add(selectedSong.getTitle() );
-				}
-				else
-				{
-					// Also check to see if this song is already on a selected album
-					if( (selectedSong != null) &&  !albumCart.containsKey( selectedSong.getAlbum().getId() ) )
-					{
-						songCart.put(songId,  selectedSong);
-					}
-					else
-					{
-						dublicateSongs.add(selectedSong.getTitle() );
-					}
-				}
-			}
-		}
 
-		
+		// Add albums to cart, but don't allow duplicates!
 		List<String> dublicateAlbums = new LinkedList<String>();
 		if( albumCheckboxList != null)
 		{
@@ -256,12 +225,47 @@ public class ControllerServlet extends HttpServlet
 				}
 				else
 				{
-					//remove any song that this album contains from  the songCart
-					dublicateSongs.addAll( RemoveSongsAlreadyOnAlbum( selectedAlbum ) );
 					albumCart.put(albumId, selectedAlbum );
+				}
+				
+				//warn about any song that this album contains from  the songCart
+				songsAlreadyOnAlbums.addAll( WarnAboutSongsAlreadyOnAlbum( 
+						selectedAlbum ) );
+			}
+		}
+
+		// Add songs, but also search for duplicate songs and songs that already appear on an album.
+		// IMPORTANT! It is essential that you check the albums first, because if
+		// a song is chosen that is already on an album, then the user will be warned
+		// about it
+		if( songCheckboxList != null )
+		{
+			for( String songId : songCheckboxList )
+			{
+				Song selectedSong = musicData.GetSong(songId);
+				if( (selectedSong != null) )
+				{
+					if( songCart.containsKey(songId) )
+					{
+						dublicateSongs.add(selectedSong.getTitle() );
+					}
+					else
+					{
+							// If the song is in our database, add it to the cart
+							songCart.put(songId,  selectedSong);
+					}
+					
+					if( albumCart.containsKey( selectedSong.getAlbum().getId() ) 
+							&& !songsAlreadyOnAlbums.contains(selectedSong.getTitle() ) )
+					{
+						// Also check to see if this song is already on a selected album
+						songsAlreadyOnAlbums.add(selectedSong.getTitle() );
+					}
 				}
 			}
 		}
+
+		
 		
 		//GetCartListAndTotalPrice(request);
 		boolean noSongsOrAlbumsOnList = GetCartListAndTotalPrice(request);
@@ -289,9 +293,16 @@ public class ControllerServlet extends HttpServlet
 			
 			if( !dublicateSongs.isEmpty() )
 			{
-				String duplicateItemMsg = "The following songs were removed because they were either already on in the cart "  
-						+ "or on an album in the cart: " + dublicateSongs.toString();
+				String duplicateItemMsg = "The following songs were removed because they were already on in the cart: "  
+						+ dublicateSongs.toString();
 				request.setAttribute("DUPLICATE_SONG", duplicateItemMsg);
+			}
+			
+			if( !songsAlreadyOnAlbums.isEmpty() )
+			{
+				String duplicateItemMsg = "The following songs already exist on an album, but you can still purchase both if you wish "  
+						+ "or on an album in the cart: " + songsAlreadyOnAlbums.toString();
+				request.setAttribute("SONG_ON_ALBUM", duplicateItemMsg);
 			}
 		}
 			
@@ -332,9 +343,9 @@ public class ControllerServlet extends HttpServlet
 
 
 
-	private List<String> RemoveSongsAlreadyOnAlbum( Album selectedAlbum ) 
+	private List<String> WarnAboutSongsAlreadyOnAlbum( Album selectedAlbum ) 
 	{
-		List<String> dublicateSongs = new LinkedList<String>();
+		List<String> songsAlreadyOnAlbums = new LinkedList<String>();
 		List<Song> albumSongList = selectedAlbum.getSongList();
 		
 		for( Song song : albumSongList )
@@ -342,12 +353,11 @@ public class ControllerServlet extends HttpServlet
 			String songId = song.getSongId();
 			if( songCart.containsKey( songId ) )
 			{
-				dublicateSongs.add( song.getTitle() );
-				songCart.remove(songId);
+				songsAlreadyOnAlbums.add( song.getTitle() );
 			}
 		}
 		
-		return dublicateSongs;
+		return songsAlreadyOnAlbums;
 	}
 
 
