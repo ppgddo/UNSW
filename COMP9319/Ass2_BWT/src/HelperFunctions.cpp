@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <string>
-#include <list>
+#include <vector>
 #include <cassert>
 #include <cmath>
 
@@ -13,7 +13,7 @@ namespace bwt {
 	namespace helpers {
 
 		// Parse the command line arguments from the main program
-		void ParseCmdLine(int argc, char ** argv, std::list<std::string>& outArray)
+		void ParseCmdLine(int argc, char ** argv, std::vector<std::string>& outArray)
 		{
 			for (int i = 1; i < argc; i++)
 			{
