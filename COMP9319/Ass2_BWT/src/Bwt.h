@@ -33,8 +33,8 @@ namespace bwt {
 	{
 	public:
 		typedef std::unordered_map<char, Letter> CountT;
-		//typedef std::unordered_map<char, std::string::size_type> RankMapT;
-		//typedef std::vector < RankMapT > RankT;
+		typedef std::unordered_map<char, std::string::size_type> RankMapT;
+		typedef std::vector < RankMapT > RankT;
 
 		BWT(const std::string bwtInputFilename, 
 			const std::string indexFilename);
@@ -56,7 +56,7 @@ namespace bwt {
 		std::string m_bwtLastColumn;
 		std::ifstream m_bwtFile;
 		CountT m_countData;
-		//RankT m_rankData;
+		RankT m_rankData;
 	};
 
 }

@@ -11,6 +11,7 @@
 
 
 static const bool DEBUG_MODE = false;
+static const std::string::size_type OCCURANCE_INTERVALS = 10000;
 
 
 using namespace std;
@@ -166,8 +167,19 @@ namespace bwt {
 	{
 		assert(row <= m_bwtLastColumn.size());
 
+		string::size_type startRow = 0;
 		string::size_type occuranceCounter = 0;
-		for (string::size_type rowCounter = 0; rowCounter <= row; rowCounter++)
+
+		if (row >= OCCURANCE_INTERVALS)
+		{
+			string::size_type quickIndex = (row / OCCURANCE_INTERVALS) - 1;
+			startRow = (quickIndex + 1) * OCCURANCE_INTERVALS;
+			RankMapT firstLetterRank = m_rankData.at(quickIndex);
+			if (firstLetterRank.find(c) != firstLetterRank.end())
+				occuranceCounter = firstLetterRank[c];
+		}
+		
+		for (string::size_type rowCounter = startRow; rowCounter <= row; rowCounter++)
 		{
 			if (c == m_bwtLastColumn.at(rowCounter) )
 				occuranceCounter++;
@@ -184,26 +196,31 @@ namespace bwt {
 		// TODO find optimal ways of doing this for larger files
 		// This will probably work better for smaller files
 
-		/*
 		// Calculate the Rank (aka Occurances) of each character for each row
+
+		// Construct an index file that takes "snapshots" of the Rank at specified intervals
+		// (i.e. one of the lecturers suggestions)
+
 		RankMapT previousRank;
-		m_rankData.reserve(m_bwtLastColumn.size());
+		m_rankData.reserve(m_bwtLastColumn.size() / OCCURANCE_INTERVALS );
 		m_countData.reserve(m_bwtLastColumn.size());
-		//string::size_type i = 0;
+		string::size_type i = 0;
 
 		for (char thisChar : m_bwtLastColumn)
 		{
-			//RankMapT& currentRank = 
 			if (previousRank.find(thisChar) == previousRank.end())
 				previousRank[thisChar] = 1;
 			else
 				previousRank[thisChar]++;
 			
 			// TODO copying rank maps like this will use up a lot of memory!
-			RankMapT thisRankMap(previousRank);
-			m_rankData.push_back(thisRankMap);
+			// Should store this data in the index file instead?
+			if (OCCURANCE_INTERVALS == ++i)
+			{
+				m_rankData.push_back(previousRank);
+				i = 0;
+			}
 		}
-		*/
 
 
 		// Calculate "count" data for each character
@@ -223,7 +240,7 @@ namespace bwt {
 		std::string::size_type counter = 0;
 		std::string::size_type prevCounter = 0;
 		char prevChar = sortedBwtLastColumn.front();
-		string::size_type i = 0;
+		i = 0;
 
 		for (char thisChar : sortedBwtLastColumn)
 		{
