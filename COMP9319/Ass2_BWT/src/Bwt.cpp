@@ -35,24 +35,24 @@ namespace bwt {
 	{
 		m_searchMode = searchMode;
 
-		std::string bwtLastColumn;
-		while (std::getline(m_bwtFile, bwtLastColumn))
+		while (std::getline(m_bwtFile, m_bwtLastColumn))
 		{
 			if (DEBUG_MODE)
-				cout << "last bwt column = " << bwtLastColumn << endl;
+				cout << "last bwt column = " << m_bwtLastColumn << endl;
 
 			// TODO what should I do when I can't store the whole column data??
-			ConstructCountAndRank(bwtLastColumn);
+			ConstructCountAndRank();
 
-			BackwardSearch(bwtLastColumn, searchString);
+			BackwardSearch(searchString);
 		}
 	}
 
 
-	unsigned int BWT::BackwardSearch(std::string& bwtLastColumn, std::string& searchString,
+	unsigned int BWT::BackwardSearch(std::string& searchString,
 		const bool findIndex, const std::string::size_type startRow)
 	{
 		assert(!searchString.empty() );
+		assert(m_bwtLastColumn.size() != 0);
 
 		if (DEBUG_MODE)
 			cout << "Searching for string: " << searchString << endl;
@@ -73,7 +73,7 @@ namespace bwt {
 		if (findIndex)
 		{
 			//i = startRow;
-			c = bwtLastColumn.at(startRow);
+			c = m_bwtLastColumn.at(startRow);
 			first = startRow;
 		}
 		else if (m_countData.find(c) != m_countData.end())
@@ -91,7 +91,7 @@ namespace bwt {
 			}
 			else
 			{
-				c = bwtLastColumn.at(first);
+				c = m_bwtLastColumn.at(first);
 				if (c == '[')  // if (c == 'm')
 				{
 					std::reverse(indentifierStringTrace.begin(), indentifierStringTrace.end());
@@ -131,7 +131,7 @@ namespace bwt {
 			set<unsigned int> identifies;
 			for (auto occurance = first; occurance <= last; occurance++)
 			{
-				identifies.insert( BackwardSearch(bwtLastColumn, searchString,
+				identifies.insert( BackwardSearch( searchString,
 					true, occurance) );
 			}
 
@@ -164,27 +164,34 @@ namespace bwt {
 
 	string::size_type BWT::RankOcc(const char c, const std::string::size_type row)
 	{
-		RankMapT firstLetterRank = m_rankData.at(row);
-		if (firstLetterRank.find(c) == firstLetterRank.end())
-			return 0;
-		else
-			return firstLetterRank[c];
+		assert(row <= m_bwtLastColumn.size());
+
+		string::size_type occuranceCounter = 0;
+		for (string::size_type rowCounter = 0; rowCounter <= row; rowCounter++)
+		{
+			if (c == m_bwtLastColumn.at(rowCounter) )
+				occuranceCounter++;
+		}
+
+		return occuranceCounter;
 	}
 
 
 
-	void BWT::ConstructCountAndRank(const std::string& bwtLastColumn)
+	void BWT::ConstructCountAndRank()
 	{
+		assert(m_bwtLastColumn.size() != 0);
 		// TODO find optimal ways of doing this for larger files
 		// This will probably work better for smaller files
 
+		/*
 		// Calculate the Rank (aka Occurances) of each character for each row
 		RankMapT previousRank;
-		m_rankData.reserve(bwtLastColumn.size());
-		m_countData.reserve(bwtLastColumn.size());
+		m_rankData.reserve(m_bwtLastColumn.size());
+		m_countData.reserve(m_bwtLastColumn.size());
 		//string::size_type i = 0;
 
-		for (char thisChar : bwtLastColumn)
+		for (char thisChar : m_bwtLastColumn)
 		{
 			//RankMapT& currentRank = 
 			if (previousRank.find(thisChar) == previousRank.end())
@@ -196,6 +203,7 @@ namespace bwt {
 			RankMapT thisRankMap(previousRank);
 			m_rankData.push_back(thisRankMap);
 		}
+		*/
 
 
 		// Calculate "count" data for each character
@@ -203,8 +211,8 @@ namespace bwt {
 		// TODO Sort before counting and jump might take up too much memory for large files??
 		// Ideas: could put the characters in an ordered set (will remove the duplicates)
 
-		// TODO don't copy bwtLastColumn for larger files
-		string sortedBwtLastColumn(bwtLastColumn);
+		// TODO don't copy m_bwtLastColumn for larger files
+		string sortedBwtLastColumn(m_bwtLastColumn);
 		sort( sortedBwtLastColumn.begin(), sortedBwtLastColumn.end() );
 
 		if (DEBUG_MODE)

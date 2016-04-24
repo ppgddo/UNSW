@@ -33,8 +33,8 @@ namespace bwt {
 	{
 	public:
 		typedef std::unordered_map<char, Letter> CountT;
-		typedef std::unordered_map<char, std::string::size_type> RankMapT;
-		typedef std::vector < RankMapT > RankT;
+		//typedef std::unordered_map<char, std::string::size_type> RankMapT;
+		//typedef std::vector < RankMapT > RankT;
 
 		BWT(const std::string bwtInputFilename, 
 			const std::string indexFilename);
@@ -43,9 +43,9 @@ namespace bwt {
 
 	private:
 		// private functions
-		unsigned int BackwardSearch(std::string& bwtLastColumn, std::string& searchString, 
+		unsigned int BackwardSearch(std::string& searchString, 
 			const bool findIndex = false, const std::string::size_type startRow = 0);
-		void ConstructCountAndRank(const std::string& bwtLastColumn);
+		void ConstructCountAndRank();
 		std::string::size_type RankOcc(const char c, const std::string::size_type row);
 
 	private:
@@ -53,9 +53,10 @@ namespace bwt {
 		SearchMode m_searchMode;
 		const std::string m_bwtInputFilename;
 		const std::string m_indexFilename;
+		std::string m_bwtLastColumn;
 		std::ifstream m_bwtFile;
 		CountT m_countData;
-		RankT m_rankData;
+		//RankT m_rankData;
 	};
 
 }
