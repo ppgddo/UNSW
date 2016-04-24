@@ -46,6 +46,7 @@ namespace bwt {
 		unsigned int BackwardSearch(std::string& bwtLastColumn, std::string& searchString, 
 			const bool findIndex = false, const std::string::size_type startRow = 0);
 		void ConstructCountAndRank(const std::string& bwtLastColumn);
+		std::string::size_type RankOcc(const char c, const std::string::size_type row);
 
 	private:
 		// Private data members

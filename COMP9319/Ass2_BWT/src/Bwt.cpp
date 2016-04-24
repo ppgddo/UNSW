@@ -110,11 +110,7 @@ namespace bwt {
 			// Update the first position
 			if (first != 0)
 			{
-				RankMapT firstLetterRank = m_rankData.at(first - 1);
-				if (firstLetterRank.find(c) == firstLetterRank.end())
-					first = 0;
-				else
-					first = firstLetterRank[c];
+				first = RankOcc(c, (first - 1));
 			}
 
 			first += m_countData[c].m_thisLetterCount;
@@ -122,12 +118,7 @@ namespace bwt {
 			// Update the last position
 			if (!findIndex)
 			{
-				RankMapT lastLetterRank = m_rankData.at(last);
-				if (lastLetterRank.find(c) == lastLetterRank.end())
-					last = 0;
-				else
-					last = lastLetterRank[c];
-
+				last = RankOcc(c, last);
 				last += m_countData[c].m_thisLetterCount - 1;
 			}
 
@@ -170,20 +161,30 @@ namespace bwt {
 		return 0;
 	}
 
+
+	string::size_type BWT::RankOcc(const char c, const std::string::size_type row)
+	{
+		RankMapT firstLetterRank = m_rankData.at(row);
+		if (firstLetterRank.find(c) == firstLetterRank.end())
+			return 0;
+		else
+			return firstLetterRank[c];
+	}
+
+
+
 	void BWT::ConstructCountAndRank(const std::string& bwtLastColumn)
 	{
 		// TODO find optimal ways of doing this for larger files
 		// This will probably work better for smaller files
 
-		// TODO don't copy bwtLastColumn for larger files
-		string reverseBwtLastColumn(bwtLastColumn);
-
+		// Calculate the Rank (aka Occurances) of each character for each row
 		RankMapT previousRank;
-		m_rankData.reserve(reverseBwtLastColumn.size());
-		m_countData.reserve(reverseBwtLastColumn.size());
+		m_rankData.reserve(bwtLastColumn.size());
+		m_countData.reserve(bwtLastColumn.size());
 		//string::size_type i = 0;
 
-		for (char thisChar : reverseBwtLastColumn)
+		for (char thisChar : bwtLastColumn)
 		{
 			//RankMapT& currentRank = 
 			if (previousRank.find(thisChar) == previousRank.end())
@@ -196,25 +197,32 @@ namespace bwt {
 			m_rankData.push_back(thisRankMap);
 		}
 
+
+		// Calculate "count" data for each character
+
 		// TODO Sort before counting and jump might take up too much memory for large files??
 		// Ideas: could put the characters in an ordered set (will remove the duplicates)
-		sort( reverseBwtLastColumn.begin(), reverseBwtLastColumn.end() );
+
+		// TODO don't copy bwtLastColumn for larger files
+		string sortedBwtLastColumn(bwtLastColumn);
+		sort( sortedBwtLastColumn.begin(), sortedBwtLastColumn.end() );
+
 		if (DEBUG_MODE)
 		{
-			cout << "sorted last column = " << reverseBwtLastColumn << endl;
+			cout << "sorted last column = " << sortedBwtLastColumn << endl;
 		}
 
 		std::string::size_type counter = 0;
 		std::string::size_type prevCounter = 0;
-		char prevChar = reverseBwtLastColumn.front();
+		char prevChar = sortedBwtLastColumn.front();
 		string::size_type i = 0;
 
-		for (char thisChar : reverseBwtLastColumn)
+		for (char thisChar : sortedBwtLastColumn)
 		{
 			if (thisChar == prevChar)
 			{
 				counter++;
-				if (i == reverseBwtLastColumn.size() - 1)
+				if (i == sortedBwtLastColumn.size() - 1)
 				{
 					// Make sure you update the last one in the list
 					std::string::size_type nextLetterCount = (prevCounter + counter);
