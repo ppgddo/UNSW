@@ -16,7 +16,7 @@ namespace bwt {
 
 	struct Letter
 	{
-		Letter(unsigned int thisLetterCount, unsigned int nextLetterCount)
+		Letter(std::string::size_type thisLetterCount, std::string::size_type nextLetterCount)
 			: m_thisLetterCount(thisLetterCount)
 			, m_nextLetterCount(nextLetterCount)
 		{}
@@ -24,8 +24,8 @@ namespace bwt {
 		Letter()
 		{};
 		
-		unsigned int m_thisLetterCount;
-		unsigned int m_nextLetterCount;
+		std::string::size_type m_thisLetterCount;
+		std::string::size_type m_nextLetterCount;
 	};
 
 
@@ -33,22 +33,19 @@ namespace bwt {
 	{
 	public:
 		typedef std::unordered_map<char, Letter> CountT;
-		typedef std::unordered_map<char, unsigned int> RankMapT;
+		typedef std::unordered_map<char, std::string::size_type> RankMapT;
 		typedef std::vector < RankMapT > RankT;
 
-		BWT(
-			const std::string bwtInputFilename, 
-			const std::string indexFilename
-			);
+		BWT(const std::string bwtInputFilename, 
+			const std::string indexFilename);
 
 		void Search(const SearchMode searchMode, std::string& searchString);
 
 	private:
 		// private functions
-		void BackwardSearch(std::string& bwtLastColumn, std::string& searchString);
-		void ConstructCountAndRank(std::string& bwtLastColumn, 
-								   CountT& countData, RankT& rankData );
-
+		unsigned int BackwardSearch(std::string& bwtLastColumn, std::string& searchString, 
+			const bool findIndex = false, const std::string::size_type startRow = 0);
+		void ConstructCountAndRank(const std::string& bwtLastColumn);
 
 	private:
 		// Private data members
@@ -56,6 +53,8 @@ namespace bwt {
 		const std::string m_bwtInputFilename;
 		const std::string m_indexFilename;
 		std::ifstream m_bwtFile;
+		CountT m_countData;
+		RankT m_rankData;
 	};
 
 }
