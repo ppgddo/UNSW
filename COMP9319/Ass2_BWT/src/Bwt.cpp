@@ -11,7 +11,8 @@
 
 
 static const bool DEBUG_MODE = false;
-static const std::string::size_type OCCURANCE_INTERVALS = 10000;
+static const bool ENABLE_ERROR_MSG = false;
+static const unsigned int OCCURANCE_INTERVALS = 10000;
 
 
 using namespace std;
@@ -27,8 +28,39 @@ namespace bwt {
 		: m_bwtInputFilename(bwtInputFilename)
 		, m_indexFilename(indexFilename)
 		, m_bwtFile(bwtInputFilename)
+		, m_readBuffer(new char[OCCURANCE_INTERVALS + 1])
+		, m_readDataFromFiles(false)
 	{
-	
+		m_bwtFile.seekg(0, ios::end);
+		m_bwtDataSize = static_cast<unsigned int>(m_bwtFile.tellg());
+		m_bwtFile.seekg(0, ios::beg);
+		m_bwtLastColumn = new char[m_bwtDataSize];
+		m_bwtFile.read(m_bwtLastColumn, m_bwtDataSize);
+
+		if (DEBUG_MODE)
+			cout << "File lenght = " << m_bwtDataSize << endl;
+
+		/*if (DEBUG_MODE)
+		{
+			unsigned int debugInt = -1;
+			unsigned int debug2 = -1;
+			cout << debugInt << endl;
+			cout << debug2 << endl;
+
+		}*/
+
+
+		if (m_bwtDataSize > 30000)
+		{
+			if (DEBUG_MODE)
+				cout << "Reading Data From Files" << endl;
+
+			m_readDataFromFiles = true;
+		}
+		else if (DEBUG_MODE)
+		{
+			cout << "Reading Data from RAM" << endl;
+		}
 	}
 
 
@@ -36,25 +68,24 @@ namespace bwt {
 	{
 		m_searchMode = searchMode;
 
-		while (std::getline(m_bwtFile, m_bwtLastColumn))
-		{
-			if (DEBUG_MODE)
-				cout << "last bwt column = " << m_bwtLastColumn << endl;
+		//std::getline(m_bwtFile, m_bwtLastColumn);
 
-			// TODO what should I do when I can't store the whole column data??
-			ConstructCountAndRank();
+		if (DEBUG_MODE)
+			cout << "last bwt column = " << *m_bwtLastColumn << endl;
 
-			BackwardSearch(searchString);
-		}
+		// TODO what should I do when I can't store the whole column data??
+		ConstructCountAndRank();
+
+		BackwardSearch(searchString);
 	}
 
 
 	unsigned int BWT::BackwardSearch(std::string& searchString,
-		const bool findIndex, const std::string::size_type startRow)
+		const bool findIndex, const unsigned int startRow)
 	{
 		assert(!searchString.empty() );
-		assert(m_bwtLastColumn.size() != 0);
-
+		assert(m_bwtDataSize != 0);
+		
 		if (DEBUG_MODE)
 			cout << "Searching for string: " << searchString << endl;
 
@@ -63,25 +94,27 @@ namespace bwt {
 		// but in this code we are using arrays that start at 0, so we need to subtract 1
 		// from the psuedo code given in the lecture
 
-		const string::size_type p = searchString.size() - 1;
-		string::size_type i = p;
-		char c = searchString.at(p);
-		string::size_type first = 1;
-		string::size_type last = 0;
+		const unsigned int p = searchString.size() - 1;
+		unsigned int i = p;
+		unsigned char c = searchString.at(p);
+		unsigned int first = 1;
+		unsigned int last = 0;
 		string indentifierStringTrace;
 		bool startTrace = false;
 
 		if (findIndex)
 		{
 			//i = startRow;
-			c = m_bwtLastColumn.at(startRow);
+			c = m_bwtLastColumn[startRow];
 			first = startRow;
 		}
-		else if (m_countData.find(c) != m_countData.end())
+		else //if (m_countOfThisChar.find(c) != m_countOfThisChar.end())
 		{
-			const Letter& letterCount = m_countData[c];
-			first = letterCount.m_thisLetterCount;
-			last = letterCount.m_nextLetterCount - 1;
+			//const Letter& letterCount = m_countOfThisChar[c];
+			first = m_countOfThisChar[c];
+			last = m_countOfNextChar[c];	// Only decrement if not zero
+			if(last != 0)
+				last--;
 		}
 
 		while (findIndex || ( (first <= last) && (i >= 1) ) )
@@ -92,7 +125,7 @@ namespace bwt {
 			}
 			else
 			{
-				c = m_bwtLastColumn.at(first);
+				c = m_bwtLastColumn[first];
 				if (c == '[')  // if (c == 'm')
 				{
 					std::reverse(indentifierStringTrace.begin(), indentifierStringTrace.end());
@@ -111,16 +144,18 @@ namespace bwt {
 			// Update the first position
 			if (first != 0)
 			{
+				assert(first != 0);
 				first = RankOcc(c, (first - 1));
 			}
 
-			first += m_countData[c].m_thisLetterCount;
+			first += m_countOfThisChar[c];
 
 			// Update the last position
 			if (!findIndex)
 			{
+				assert(last != (static_cast<unsigned int> (-1)) );
 				last = RankOcc(c, last);
-				last += m_countData[c].m_thisLetterCount - 1;
+				last += m_countOfThisChar[c] - 1;
 			}
 
 			i--;
@@ -163,25 +198,40 @@ namespace bwt {
 	}
 
 
-	string::size_type BWT::RankOcc(const char c, const std::string::size_type row)
+	unsigned int BWT::RankOcc(const unsigned char c, const unsigned int row)
 	{
-		assert(row <= m_bwtLastColumn.size());
+		assert(row <= m_bwtDataSize);
+		if (ENABLE_ERROR_MSG && (row > m_bwtDataSize) )
+		{
+			cout << "Row = " << row << " and is bigger than the data size of " 
+				<< m_bwtDataSize << endl;
+			throw std::runtime_error("Read above error message!");
+		}
 
-		string::size_type startRow = 0;
-		string::size_type occuranceCounter = 0;
+		unsigned int startRow = 0;
+		unsigned int occuranceCounter = 0;
 
 		if (row >= OCCURANCE_INTERVALS)
 		{
-			string::size_type quickIndex = (row / OCCURANCE_INTERVALS) - 1;
+			unsigned int quickIndex = (row / OCCURANCE_INTERVALS) - 1;
 			startRow = (quickIndex + 1) * OCCURANCE_INTERVALS;
 			RankMapT firstLetterRank = m_rankData.at(quickIndex);
 			if (firstLetterRank.find(c) != firstLetterRank.end())
 				occuranceCounter = firstLetterRank[c];
 		}
 		
-		for (string::size_type rowCounter = startRow; rowCounter <= row; rowCounter++)
+
+		m_bwtFile.seekg(startRow);
+		m_bwtFile.read(m_readBuffer, (row - startRow + 1) );
+		unsigned int i = 0;
+
+		for (unsigned int rowCounter = startRow; rowCounter <= row; rowCounter++)
 		{
-			if (c == m_bwtLastColumn.at(rowCounter) )
+			// TODO change "m_bwtLastColumn" to a fixed sized unsigned char array and use this
+			// for smaller files!
+			// if (c == m_bwtLastColumn[rowCounter] )
+
+			if (c == m_readBuffer[i++] )
 				occuranceCounter++;
 		}
 
@@ -192,7 +242,8 @@ namespace bwt {
 
 	void BWT::ConstructCountAndRank()
 	{
-		assert(m_bwtLastColumn.size() != 0);
+		assert(m_bwtDataSize != 0);
+
 		// TODO find optimal ways of doing this for larger files
 		// This will probably work better for smaller files
 
@@ -202,16 +253,23 @@ namespace bwt {
 		// (i.e. one of the lecturers suggestions)
 
 		RankMapT previousRank;
-		m_rankData.reserve(m_bwtLastColumn.size() / OCCURANCE_INTERVALS );
-		m_countData.reserve(m_bwtLastColumn.size());
-		string::size_type i = 0;
+		m_rankData.reserve(m_bwtDataSize / OCCURANCE_INTERVALS );
+		CountT charCounter = { 0 };
+		//for (int i = 0; i < COUNT_DATA_ARRAY_SIZE; ++i) {
+		//	charCounter[i] = 0;
+		//}
 
-		for (char thisChar : m_bwtLastColumn)
+		unsigned int i = 0;
+
+		for (unsigned int charIterator = 0; charIterator < m_bwtDataSize; charIterator++)
 		{
+			unsigned char thisChar = m_bwtLastColumn[charIterator];
 			if (previousRank.find(thisChar) == previousRank.end())
 				previousRank[thisChar] = 1;
 			else
 				previousRank[thisChar]++;
+
+			charCounter[thisChar]++;
 			
 			// TODO copying rank maps like this will use up a lot of memory!
 			// Should store this data in the index file instead?
@@ -222,9 +280,31 @@ namespace bwt {
 			}
 		}
 
+		// DO a second pass to fill in the "count data" (i.e. the number of characters
+		// that come before it
+		unsigned int runningTotal = 0;
+		unsigned int currentValue = 0;
+		for (unsigned int charIterator = 0; charIterator < COUNT_DATA_ARRAY_SIZE; charIterator++)
+		{
+			currentValue = charCounter[charIterator];
+			if (currentValue == 0)
+				continue;
+
+			m_countOfThisChar[charIterator] = runningTotal;
+			runningTotal += currentValue;
+			m_countOfNextChar[charIterator] = runningTotal;
+		}
+
+
+		// push the last rank data on (if it didn't happen to land exactly 
+		// on the OCCURANCE_INTERVALS)
+		//if( i != 0)
+		//	m_rankData.push_back(previousRank);
+
 
 		// Calculate "count" data for each character
 
+		/*
 		// TODO Sort before counting and jump might take up too much memory for large files??
 		// Ideas: could put the characters in an ordered set (will remove the duplicates)
 
@@ -237,12 +317,15 @@ namespace bwt {
 			cout << "sorted last column = " << sortedBwtLastColumn << endl;
 		}
 
-		std::string::size_type counter = 0;
-		std::string::size_type prevCounter = 0;
-		char prevChar = sortedBwtLastColumn.front();
+
+		// TODO can just sort out "blocks" like above and then just update the counts
+
+		unsigned int counter = 0;
+		unsigned int prevCounter = 0;
+		unsigned char prevChar = sortedBwtLastColumn.front();
 		i = 0;
 
-		for (char thisChar : sortedBwtLastColumn)
+		for (unsigned char thisChar : sortedBwtLastColumn)
 		{
 			if (thisChar == prevChar)
 			{
@@ -250,14 +333,14 @@ namespace bwt {
 				if (i == sortedBwtLastColumn.size() - 1)
 				{
 					// Make sure you update the last one in the list
-					std::string::size_type nextLetterCount = (prevCounter + counter);
-					m_countData[prevChar] = Letter(prevCounter, nextLetterCount);
+					unsigned int nextLetterCount = (prevCounter + counter);
+					m_countOfThisChar[prevChar] = Letter(prevCounter, nextLetterCount);
 				}
 			}
 			else
 			{
-				std::string::size_type nextLetterCount = (prevCounter + counter);
-				m_countData[prevChar] = Letter(prevCounter, nextLetterCount);
+				unsigned int nextLetterCount = (prevCounter + counter);
+				m_countOfThisChar[prevChar] = Letter(prevCounter, nextLetterCount);
 				prevCounter = nextLetterCount;
 				counter = 1;
 			}
@@ -265,6 +348,7 @@ namespace bwt {
 			prevChar = thisChar;
 			i++;
 		}
+		*/
 	}
 
 
