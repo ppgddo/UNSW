@@ -29,6 +29,8 @@ namespace bwt {
 		BWT(const std::string bwtInputFilename, 
 			const std::string indexFilename);
 
+		~BWT();
+
 		void Search(const SearchMode searchMode, std::string& searchString);
 
 	private:
@@ -37,6 +39,7 @@ namespace bwt {
 			const bool findIndex = false, const unsigned int startRow = 0);
 		void ConstructCountAndRank();
 		unsigned int RankOcc(const unsigned char c, const unsigned int row);
+		unsigned char GetBwtCharacter(const unsigned int row);
 
 	private:
 		// Private data members
@@ -49,6 +52,7 @@ namespace bwt {
 		char* m_bwtLastColumn;
 		unsigned int m_bwtDataSize;
 		unsigned int m_rankArraySize; //RANK_ARRAY_SIZE
+		unsigned int m_occuranceIntervals = 0;  //10000; // = 5;
 		CountT m_countOfThisChar = { 0 };
 		CountT m_countOfNextChar = { 0 };
 		RankT m_rankData;

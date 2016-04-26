@@ -13,7 +13,7 @@
 static const bool DEBUG_MODE = false;
 static const bool ENABLE_ERROR_MSG = false;
 
-unsigned int OCCURANCE_INTERVALS = 0;  //10000; // = 5;
+
 
 
 using namespace std;
@@ -22,6 +22,12 @@ using namespace bwt::helpers;
 
 namespace bwt {
 
+	BWT::~BWT()
+	{
+		delete[] m_bwtLastColumn;
+		delete[] m_readBuffer;
+		delete[] m_rankData;
+	}
 
 	BWT::BWT(const std::string bwtInputFilename, 
 			 const std::string indexFilename
@@ -40,7 +46,7 @@ namespace bwt {
 
 		if(0)	// (m_bwtDataSize > 30000) Not implemented yet
 		{
-			//assert(0); // TODO this hasn't been tested or debugged!!
+			assert(0); // TODO this hasn't been tested or debugged!!
 
 			m_readDataFromFiles = true;
 			m_rankArraySize = (m_bwtDataSize / (COUNT_DATA_ARRAY_SIZE * sizeof(unsigned int)))
@@ -61,49 +67,30 @@ namespace bwt {
 			}
 		}
 
-		// TODO make OCCURANCE_INTERVALS a member variable
+		// TODO make m_occuranceIntervals a member variable
 		double temp1 = static_cast<double>(m_rankArraySize) / 
 			static_cast<double>(COUNT_DATA_ARRAY_SIZE);
 		if (temp1 > 0)
-			OCCURANCE_INTERVALS = static_cast<unsigned int> ( ceil (
+			m_occuranceIntervals = static_cast<unsigned int> ( ceil (
 				static_cast<double>(m_bwtDataSize) / temp1 ) );
 
-		if (OCCURANCE_INTERVALS < 1)
-			OCCURANCE_INTERVALS = 1;
+		if (m_occuranceIntervals < 1)
+			m_occuranceIntervals = 1;
 
-		m_readBuffer = new char[OCCURANCE_INTERVALS + 1];
+		m_readBuffer = new char[m_occuranceIntervals + 1];
 		m_rankData = new unsigned int[m_rankArraySize];
 
 
 		// init all values to 0 by incrementing the m_rankData pointer
-		//const unsigned int numOfRankArrayElements
-		//RankT tempArrayPointer = m_rankData;
 		for (unsigned int i = 0; i < m_rankArraySize; i++)
 		{
-			//*tempArrayPointer = 0;
-			//tempArrayPointer++;
 			assert(i < m_rankArraySize);
 			m_rankData[i] = 0;
 		}
 
 
-
-
-
-
-
 		if (DEBUG_MODE)
 			cout << "File lenght = " << m_bwtDataSize << endl;
-
-		/*if (DEBUG_MODE)
-		{
-			unsigned int debugInt = -1;
-			unsigned int debug2 = -1;
-			cout << debugInt << endl;
-			cout << debug2 << endl;
-
-		}*/
-
 
 	}
 
@@ -111,8 +98,6 @@ namespace bwt {
 	void BWT::Search(const SearchMode searchMode, std::string& searchString)
 	{
 		m_searchMode = searchMode;
-
-		//std::getline(m_bwtFile, m_bwtLastColumn);
 
 		if (DEBUG_MODE)
 			cout << "last bwt column = " << *m_bwtLastColumn << endl;
@@ -149,7 +134,7 @@ namespace bwt {
 		if (findIndex)
 		{
 			//i = startRow;
-			c = m_bwtLastColumn[startRow];
+			c = GetBwtCharacter(startRow);
 			first = startRow;
 		}
 		else //if (m_countOfThisChar.find(c) != m_countOfThisChar.end())
@@ -169,7 +154,7 @@ namespace bwt {
 			}
 			else
 			{
-				c = m_bwtLastColumn[first];
+				c = GetBwtCharacter(first);
 				if (c == '[')  // if (c == 'm')
 				{
 					std::reverse(indentifierStringTrace.begin(), indentifierStringTrace.end());
@@ -256,31 +241,25 @@ namespace bwt {
 		unsigned int startRow = 0;
 		unsigned int occuranceCounter = 0;
 
-		assert(OCCURANCE_INTERVALS > 0);
-		if (row >= OCCURANCE_INTERVALS)
+		assert(m_occuranceIntervals > 0);
+		if (row >= m_occuranceIntervals)
 		{
-			unsigned int relativeIndex = (row / OCCURANCE_INTERVALS) - 1;
+			unsigned int relativeIndex = (row / m_occuranceIntervals) - 1;
 			unsigned int arrayIndex = (relativeIndex*COUNT_DATA_ARRAY_SIZE) + c;
 			assert(arrayIndex < m_rankArraySize);
 			occuranceCounter = m_rankData[arrayIndex];
 
-			startRow = (relativeIndex + 1) * OCCURANCE_INTERVALS;
-			//RankMapT firstLetterRank = m_rankData.at(quickIndex);
-			//if (firstLetterRank.find(c) != firstLetterRank.end())
-			//	occuranceCounter = firstLetterRank[c];
+			startRow = (relativeIndex + 1) * m_occuranceIntervals;
 		}
 		
-
 		m_bwtFile.seekg(startRow);
 		m_bwtFile.read(m_readBuffer, (row - startRow + 1) );
 		unsigned int i = 0;
 
 		for (unsigned int rowCounter = startRow; rowCounter <= row; rowCounter++)
 		{
-			// TODO change "m_bwtLastColumn" to a fixed sized unsigned char array and use this
+			// The "m_bwtLastColumn" is a "fixed" sized unsigned char array and use this
 			// for smaller files!
-			// if (c == m_bwtLastColumn[rowCounter] )
-
 			if (c == m_readBuffer[i++] )
 				occuranceCounter++;
 		}
@@ -289,10 +268,16 @@ namespace bwt {
 	}
 
 
+	unsigned char BWT::GetBwtCharacter(const unsigned int row)
+	{
+		// TODO FOr larger files read directly from the file!
+		return m_bwtLastColumn[row];
+	}
+
 
 	void BWT::ConstructCountAndRank()
 	{
-		assert(m_bwtDataSize != 0);
+		assert( (m_readDataFromFiles) || (m_bwtDataSize != 0) );
 
 		// TODO find optimal ways of doing this for larger files
 		// This will probably work better for smaller files
@@ -302,27 +287,27 @@ namespace bwt {
 		// Construct an index file that takes "snapshots" of the Rank at specified intervals
 		// (i.e. one of the lecturers suggestions)
 
-		//RankMapT previousRank;
-		//m_rankData.reserve(m_bwtDataSize / OCCURANCE_INTERVALS );
 		CountT charCounter = { 0 };
 		unsigned int rankArrayOffset = 0;
 
 		unsigned int i = 0;
 
+
+		//m_bwtFile.seekg(startRow);
+		//m_bwtFile.read(readBlockBuffer, (row - startRow + 1));
+
+
 		for (unsigned int charIterator = 0; charIterator < m_bwtDataSize; charIterator++)
 		{
 			unsigned char thisChar = m_bwtLastColumn[charIterator];
 			assert(thisChar < COUNT_DATA_ARRAY_SIZE); //We were promised to only get ASCII values less than 128
-			//if (previousRank.find(thisChar) == previousRank.end())
-			//	previousRank[thisChar] = 1;
-			//else
 			
 			charCounter[thisChar]++;
 
 			
 			// TODO copying rank maps like this will use up a lot of memory!
 			// Should store this data in the index file instead?
-			if (OCCURANCE_INTERVALS == ++i)
+			if (m_occuranceIntervals == ++i)
 			{
 				
 				for (unsigned int it = 0; it < COUNT_DATA_ARRAY_SIZE; it++)
@@ -351,13 +336,6 @@ namespace bwt {
 			runningTotal += currentValue;
 			m_countOfNextChar[charIterator] = runningTotal;
 		}
-
-
-		// push the last rank data on (if it didn't happen to land exactly 
-		// on the OCCURANCE_INTERVALS)
-		//if( i != 0)
-		//	m_rankData.push_back(previousRank);
-
 	}
 
 
