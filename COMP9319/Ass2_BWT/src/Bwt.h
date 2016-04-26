@@ -47,9 +47,10 @@ namespace bwt {
 		const std::string m_bwtInputFilename;
 		const std::string m_indexFilename;
 		std::ifstream m_bwtFile;
-		char* m_readBuffer;
-		bool m_readDataFromFiles;
-		char* m_bwtLastColumn;
+		char* m_readBuffer = 0;
+		bool m_readDataFromFiles = false;
+		bool m_useIndexFile = false;
+		char* m_bwtLastColumn = 0;
 		unsigned int m_bwtDataSize;
 		unsigned int m_rankArraySize; //RANK_ARRAY_SIZE
 		unsigned int m_occuranceIntervals = 0;  //10000; // = 5;

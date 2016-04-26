@@ -35,36 +35,49 @@ namespace bwt {
 		: m_bwtInputFilename(bwtInputFilename)
 		, m_indexFilename(indexFilename)
 		, m_bwtFile(bwtInputFilename)
-		, m_readDataFromFiles(false)
 	{
 		m_bwtFile.seekg(0, ios::end);
 		m_bwtDataSize = static_cast<unsigned int>(m_bwtFile.tellg());
 		m_bwtFile.seekg(0, ios::beg);
-		m_bwtLastColumn = new char[m_bwtDataSize];
-		m_bwtFile.read(m_bwtLastColumn, m_bwtDataSize);
-
-
-		if(0)	// (m_bwtDataSize > 30000) Not implemented yet
+		
+		if (m_bwtDataSize > 1000000)	// (0) if Not implemented yet
 		{
-			assert(0); // TODO this hasn't been tested or debugged!!
-
 			m_readDataFromFiles = true;
-			m_rankArraySize = (m_bwtDataSize / (COUNT_DATA_ARRAY_SIZE * sizeof(unsigned int)))
-				* COUNT_DATA_ARRAY_SIZE;
 
 			if (DEBUG_MODE)
 				cout << "Reading Data From Files" << endl;
 		}
+
+		if (m_useIndexFile)
+		{
+			m_rankArraySize = (m_bwtDataSize / (COUNT_DATA_ARRAY_SIZE * sizeof(unsigned int)))
+				* COUNT_DATA_ARRAY_SIZE;
+		}
 		else 
 		{
 			// TODO this should be inversely proportional to the file size
-			m_rankArraySize = COUNT_DATA_ARRAY_SIZE * (2000U / sizeof(unsigned int) );	//15000
+			m_rankArraySize = COUNT_DATA_ARRAY_SIZE * (32000U / sizeof(unsigned int) );	//15000
 
 			if (DEBUG_MODE)
 			{
 				m_rankArraySize = 2 * COUNT_DATA_ARRAY_SIZE;
 				cout << "Reading Data from RAM" << endl;
 			}
+
+			m_rankData = new unsigned int[m_rankArraySize + 1];
+
+			// init all values to 0 by incrementing the m_rankData pointer
+			for (unsigned int i = 0; i < m_rankArraySize; i++)
+			{
+				assert(i < m_rankArraySize);
+				m_rankData[i] = 0;
+			}
+		}
+
+		if (!m_readDataFromFiles)
+		{
+			m_bwtLastColumn = new char[m_bwtDataSize + 1];
+			m_bwtFile.read(m_bwtLastColumn, m_bwtDataSize);
 		}
 
 		// TODO make m_occuranceIntervals a member variable
@@ -77,16 +90,6 @@ namespace bwt {
 		if (m_occuranceIntervals < 1)
 			m_occuranceIntervals = 1;
 
-		m_readBuffer = new char[m_occuranceIntervals + 1];
-		m_rankData = new unsigned int[m_rankArraySize];
-
-
-		// init all values to 0 by incrementing the m_rankData pointer
-		for (unsigned int i = 0; i < m_rankArraySize; i++)
-		{
-			assert(i < m_rankArraySize);
-			m_rankData[i] = 0;
-		}
 
 
 		if (DEBUG_MODE)
@@ -98,13 +101,9 @@ namespace bwt {
 	void BWT::Search(const SearchMode searchMode, std::string& searchString)
 	{
 		m_searchMode = searchMode;
-
-		if (DEBUG_MODE)
-			cout << "last bwt column = " << *m_bwtLastColumn << endl;
-
-		// TODO what should I do when I can't store the whole column data??
 		ConstructCountAndRank();
 
+		m_readBuffer = new char[m_occuranceIntervals + 1];
 		BackwardSearch(searchString);
 	}
 
@@ -258,7 +257,7 @@ namespace bwt {
 
 		for (unsigned int rowCounter = startRow; rowCounter <= row; rowCounter++)
 		{
-			// The "m_bwtLastColumn" is a "fixed" sized unsigned char array and use this
+			// TODO The "m_bwtLastColumn" is a "fixed" sized unsigned char array and use this
 			// for smaller files!
 			if (c == m_readBuffer[i++] )
 				occuranceCounter++;
@@ -270,8 +269,21 @@ namespace bwt {
 
 	unsigned char BWT::GetBwtCharacter(const unsigned int row)
 	{
+		assert(row < m_bwtDataSize);
+		assert(m_readBuffer != 0);
+
 		// TODO FOr larger files read directly from the file!
-		return m_bwtLastColumn[row];
+		if (m_readDataFromFiles)
+		{
+			// TODO should do this in blocks!
+			m_bwtFile.seekg(row);
+			m_bwtFile.read(m_readBuffer, 1);
+			return m_readBuffer[0];
+		}
+		else
+		{
+			return m_bwtLastColumn[row];
+		}
 	}
 
 
@@ -291,36 +303,58 @@ namespace bwt {
 		unsigned int rankArrayOffset = 0;
 
 		unsigned int i = 0;
+		unsigned int startRow = 0;
+		// Ideally you want the block size to be a multiple of the "m_occuranceIntervals"
+		const unsigned int optimalBlockSize = (1000000 / m_occuranceIntervals) * m_occuranceIntervals;
+		const unsigned int blockSize = 
+			( m_readDataFromFiles && (m_bwtDataSize > optimalBlockSize) ) ? optimalBlockSize : m_bwtDataSize;
+		char* readBlockBuffer;
+		
+		if (m_readDataFromFiles)
+			readBlockBuffer = new char[blockSize + 1];
+		else
+			readBlockBuffer = m_bwtLastColumn;
 
-
-		//m_bwtFile.seekg(startRow);
-		//m_bwtFile.read(readBlockBuffer, (row - startRow + 1));
-
-
-		for (unsigned int charIterator = 0; charIterator < m_bwtDataSize; charIterator++)
+		while (startRow < m_bwtDataSize)
 		{
-			unsigned char thisChar = m_bwtLastColumn[charIterator];
-			assert(thisChar < COUNT_DATA_ARRAY_SIZE); //We were promised to only get ASCII values less than 128
-			
-			charCounter[thisChar]++;
+			unsigned int readSize = m_bwtDataSize;
 
-			
-			// TODO copying rank maps like this will use up a lot of memory!
-			// Should store this data in the index file instead?
-			if (m_occuranceIntervals == ++i)
+			if (m_readDataFromFiles)
 			{
-				
-				for (unsigned int it = 0; it < COUNT_DATA_ARRAY_SIZE; it++)
-				{
-					unsigned int thisArrayIndex = rankArrayOffset + it;
-					assert(thisArrayIndex < m_rankArraySize);
-					m_rankData[thisArrayIndex] = charCounter[it];
-				}
+				m_bwtFile.seekg(startRow);
+				readSize = blockSize;
+				if ((startRow + readSize) > m_bwtDataSize)
+					readSize = m_bwtDataSize - startRow;
 
-				rankArrayOffset += COUNT_DATA_ARRAY_SIZE;
-				i = 0;
+				m_bwtFile.read(readBlockBuffer, readSize);
 			}
+
+
+			for (unsigned int charIterator = 0; charIterator < readSize; charIterator++)
+			{
+				unsigned char thisChar = readBlockBuffer[charIterator];
+				assert(thisChar < COUNT_DATA_ARRAY_SIZE); //We were promised to only get ASCII values less than 128
+
+				charCounter[thisChar]++;
+
+				// TODO copying rank maps like this will use up a lot of memory!
+				// Should store this data in the index file instead?
+				if (m_occuranceIntervals == ++i)
+				{
+					for (unsigned int it = 0; it < COUNT_DATA_ARRAY_SIZE; it++)
+					{
+						unsigned int thisArrayIndex = rankArrayOffset + it;
+						assert(thisArrayIndex < m_rankArraySize);
+						m_rankData[thisArrayIndex] = charCounter[it];
+					}
+
+					rankArrayOffset += COUNT_DATA_ARRAY_SIZE;
+					i = 0;
+				}
+			}
+			startRow += readSize;
 		}
+
 
 		// DO a second pass to fill in the "count data" (i.e. the number of characters
 		// that come before it
@@ -336,6 +370,9 @@ namespace bwt {
 			runningTotal += currentValue;
 			m_countOfNextChar[charIterator] = runningTotal;
 		}
+
+		if (m_readDataFromFiles)
+			delete[] readBlockBuffer;
 	}
 
 
