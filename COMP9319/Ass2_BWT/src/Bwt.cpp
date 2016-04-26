@@ -47,11 +47,48 @@ namespace bwt {
 			if (DEBUG_MODE)
 				cout << "Reading Data From Files" << endl;
 		}
+		
+		if (m_bwtDataSize > 9000000)
+		{
+			m_useIndexFile = true;
+		}
+		else if(DEBUG_MODE && (m_bwtDataSize > 2) )
+		{
+			// TODO remove this debug code
+			m_useIndexFile = true;
+		}
 
 		if (m_useIndexFile)
 		{
-			m_rankArraySize = (m_bwtDataSize / (COUNT_DATA_ARRAY_SIZE * sizeof(unsigned int)))
-				* COUNT_DATA_ARRAY_SIZE;
+			//unsigned int tempVar = static_cast<unsigned int> ( ceil(
+			//	static_cast<double>(m_bwtDataSize /
+			//	(COUNT_DATA_ARRAY_SIZE * sizeof(unsigned int) ) ) ) );
+			unsigned int tempVar = ( (m_bwtDataSize - COUNT_DATA_ARRAY_SIZE) /
+					(COUNT_DATA_ARRAY_SIZE * sizeof(unsigned int)));
+
+			m_rankArraySize = tempVar * (COUNT_DATA_ARRAY_SIZE);  // *sizeof(unsigned int));
+
+			assert(m_rankArraySize * sizeof(unsigned int) <= m_bwtDataSize);
+
+			m_indexFile.open(m_indexFilename, ios::in | ios::binary);
+
+			m_indexFile.seekg(0, ios::end);
+			m_indexFileSize = static_cast<unsigned int>(m_indexFile.tellg());
+			m_indexFile.seekg(0, ios::beg);
+
+			if (m_indexFile.good() && (m_indexFileSize != 0) )
+			{
+				// If the file already exists, then we can assume it's the correct one and use it
+				assert(m_indexFileSize <= m_bwtDataSize); // This is one of the contraints we were given
+			}
+			else
+			{
+				// If it is empty, we must create one for the next runs
+				m_indexFile.close();
+				m_indexFileSize = 0;
+				m_createIndexFile = true;
+				m_indexFile.open(m_indexFilename, ios::out | ios::binary);
+			}
 		}
 		else 
 		{
@@ -74,23 +111,20 @@ namespace bwt {
 			}
 		}
 
+		double temp1 = static_cast<double>(m_rankArraySize) /
+			static_cast<double>(COUNT_DATA_ARRAY_SIZE);
+		if (temp1 > 0)
+			m_occuranceIntervals = static_cast<unsigned int> (ceil(
+				static_cast<double>(m_bwtDataSize) / temp1));
+
+		if (m_occuranceIntervals < 1)
+			m_occuranceIntervals = 1;
+
 		if (!m_readDataFromFiles)
 		{
 			m_bwtLastColumn = new char[m_bwtDataSize + 1];
 			m_bwtFile.read(m_bwtLastColumn, m_bwtDataSize);
 		}
-
-		// TODO make m_occuranceIntervals a member variable
-		double temp1 = static_cast<double>(m_rankArraySize) / 
-			static_cast<double>(COUNT_DATA_ARRAY_SIZE);
-		if (temp1 > 0)
-			m_occuranceIntervals = static_cast<unsigned int> ( ceil (
-				static_cast<double>(m_bwtDataSize) / temp1 ) );
-
-		if (m_occuranceIntervals < 1)
-			m_occuranceIntervals = 1;
-
-
 
 		if (DEBUG_MODE)
 			cout << "File lenght = " << m_bwtDataSize << endl;
@@ -246,7 +280,11 @@ namespace bwt {
 			unsigned int relativeIndex = (row / m_occuranceIntervals) - 1;
 			unsigned int arrayIndex = (relativeIndex*COUNT_DATA_ARRAY_SIZE) + c;
 			assert(arrayIndex < m_rankArraySize);
-			occuranceCounter = m_rankData[arrayIndex];
+			
+			if (m_useIndexFile)
+				occuranceCounter = GetRankFromIndexFile(arrayIndex);
+			else
+				occuranceCounter = m_rankData[arrayIndex];
 
 			startRow = (relativeIndex + 1) * m_occuranceIntervals;
 		}
@@ -264,6 +302,18 @@ namespace bwt {
 		}
 
 		return occuranceCounter;
+	}
+
+
+	unsigned int BWT::GetRankFromIndexFile(const unsigned int arrayIndex)
+	{
+		// If in file moode, don't use the m_rankData
+		unsigned int filePosition = arrayIndex * sizeof(unsigned int);
+
+		m_indexFile.seekg(filePosition);
+		m_indexFile.read(m_readBuffer, sizeof(unsigned int) );
+		
+		return *(reinterpret_cast<unsigned int*>(m_readBuffer) );
 	}
 
 
@@ -315,6 +365,14 @@ namespace bwt {
 		else
 			readBlockBuffer = m_bwtLastColumn;
 
+		if (m_createIndexFile)
+		{
+			assert(m_rankData == 0);
+			unsigned int bufferSize = (blockSize / m_occuranceIntervals) * COUNT_DATA_ARRAY_SIZE * sizeof(unsigned int);
+			m_rankData = new unsigned int[bufferSize];
+		}
+
+
 		while (startRow < m_bwtDataSize)
 		{
 			unsigned int readSize = m_bwtDataSize;
@@ -337,9 +395,8 @@ namespace bwt {
 
 				charCounter[thisChar]++;
 
-				// TODO copying rank maps like this will use up a lot of memory!
 				// Should store this data in the index file instead?
-				if (m_occuranceIntervals == ++i)
+				if ( ( (!m_useIndexFile) || (m_createIndexFile)) && (m_occuranceIntervals == ++i) )
 				{
 					for (unsigned int it = 0; it < COUNT_DATA_ARRAY_SIZE; it++)
 					{
@@ -352,7 +409,15 @@ namespace bwt {
 					i = 0;
 				}
 			}
+
 			startRow += readSize;
+
+			if (m_createIndexFile)
+			{
+				char* writeBuffer = reinterpret_cast<char*>(m_rankData);
+				m_indexFile.write(writeBuffer, rankArrayOffset*sizeof(unsigned int) );
+				rankArrayOffset = 0;
+			}
 		}
 
 
@@ -373,6 +438,18 @@ namespace bwt {
 
 		if (m_readDataFromFiles)
 			delete[] readBlockBuffer;
+
+		if (m_createIndexFile)
+		{
+			// If a index file was just created, update it's size and make sure it's within the
+			// contraints given (i.e. isn't bigger than the input bwt data)
+			m_indexFile.close();
+			m_indexFile.open(m_indexFilename, ios::in | ios::binary);
+			m_indexFile.seekg(0, ios::end);
+			m_indexFileSize = static_cast<unsigned int>(m_indexFile.tellg());
+			m_indexFile.seekg(0, ios::beg);
+			assert(m_indexFileSize <= m_bwtDataSize); // This is one of the contraints we were given
+		}
 	}
 
 
