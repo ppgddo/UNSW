@@ -17,10 +17,14 @@ namespace bwt {
 	class BWT
 	{
 	public:
-		static const unsigned int COUNT_DATA_ARRAY_SIZE = 256;	//sizeof(unsigned char) ^ 8;
+		static const unsigned int COUNT_DATA_ARRAY_SIZE = 128;	//256;	//sizeof(unsigned char) ^ 8;
+		//static const unsigned int RANK_ARRAY_SIZE = 710 * COUNT_DATA_ARRAY_SIZE; // must be a multiple of COUNT_DATA_ARRAY_SIZE!!!
 		typedef unsigned int CountT[COUNT_DATA_ARRAY_SIZE];
-		typedef std::unordered_map<unsigned char, unsigned int> RankMapT;
-		typedef std::vector < RankMapT > RankT;
+		//typedef std::unordered_map<unsigned char, unsigned int> RankMapT;
+		//typedef std::vector < RankMapT > RankT;
+		typedef unsigned int* RankT;
+		//typedef unsigned int RankT[RANK_ARRAY_SIZE];
+
 
 		BWT(const std::string bwtInputFilename, 
 			const std::string indexFilename);
@@ -44,6 +48,7 @@ namespace bwt {
 		bool m_readDataFromFiles;
 		char* m_bwtLastColumn;
 		unsigned int m_bwtDataSize;
+		unsigned int m_rankArraySize; //RANK_ARRAY_SIZE
 		CountT m_countOfThisChar = { 0 };
 		CountT m_countOfNextChar = { 0 };
 		RankT m_rankData;

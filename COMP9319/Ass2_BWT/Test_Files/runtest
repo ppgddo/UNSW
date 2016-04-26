@@ -1,0 +1,52 @@
+rm -f *.o *.out *.idx
+
+make 
+
+echo "Total 4 sets of tests."
+echo "Test 1 starts..."
+./bwtsearch -n ~cs9319/a2/shopping.bwt shopping.idx "in" > test1n.out
+./bwtsearch -r ~cs9319/a2/shopping.bwt shopping.idx "in" > test1r.out
+./bwtsearch -a ~cs9319/a2/shopping.bwt shopping.idx "in" > test1a.out
+
+echo "Test 2 starts..."
+./bwtsearch -n ~cs9319/a2/shopping.bwt shopping.idx "in " > test2n.out
+./bwtsearch -r ~cs9319/a2/shopping.bwt shopping.idx "in " > test2r.out
+./bwtsearch -a ~cs9319/a2/shopping.bwt shopping.idx "in " > test2a.out
+
+echo "Test 3 starts..."
+./bwtsearch -n ~cs9319/a2/dblp.bwt dblp.idx "ata" > test3n.out
+./bwtsearch -r ~cs9319/a2/dblp.bwt dblp.idx "ata" > test3r.out
+./bwtsearch -a ~cs9319/a2/dblp.bwt dblp.idx "ata" > test3a.out
+
+echo "Test 4 starts..."
+./bwtsearch -n ~cs9319/a2/dblp.bwt dblp.idx " Data " > test4n.out
+./bwtsearch -r ~cs9319/a2/dblp.bwt dblp.idx " Data " > test4r.out
+./bwtsearch -a ~cs9319/a2/dblp.bwt dblp.idx " Data " > test4a.out
+
+for ((i=1;i<5;++i))
+do
+  correct=`eval diff -q ~cs9319/a2/test${i}n.out test${i}n.out`
+  echo -ne "test${i} -n: "
+  if [ -z "$correct" ]; then
+    echo  "Passed" 
+  else
+    echo  "Failed" 
+  fi
+  correct=`eval diff -q ~cs9319/a2/test${i}r.out test${i}r.out`
+  echo -ne "test${i} -r: "
+  if [ -z "$correct" ]; then
+    echo  "Passed"
+  else
+    echo  "Failed"
+  fi
+  correct=`eval diff -q ~cs9319/a2/test${i}a.out test${i}a.out`
+  echo -ne "test${i} -a: "
+  if [ -z "$correct" ]; then
+    echo  "Passed"
+  else
+    echo  "Failed"
+  fi
+
+done
+echo "DONE" 
+

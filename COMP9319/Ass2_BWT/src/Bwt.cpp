@@ -12,7 +12,8 @@
 
 static const bool DEBUG_MODE = false;
 static const bool ENABLE_ERROR_MSG = false;
-static const unsigned int OCCURANCE_INTERVALS = 10000;
+
+unsigned int OCCURANCE_INTERVALS = 0;  //10000; // = 5;
 
 
 using namespace std;
@@ -28,7 +29,6 @@ namespace bwt {
 		: m_bwtInputFilename(bwtInputFilename)
 		, m_indexFilename(indexFilename)
 		, m_bwtFile(bwtInputFilename)
-		, m_readBuffer(new char[OCCURANCE_INTERVALS + 1])
 		, m_readDataFromFiles(false)
 	{
 		m_bwtFile.seekg(0, ios::end);
@@ -36,6 +36,61 @@ namespace bwt {
 		m_bwtFile.seekg(0, ios::beg);
 		m_bwtLastColumn = new char[m_bwtDataSize];
 		m_bwtFile.read(m_bwtLastColumn, m_bwtDataSize);
+
+
+		if(0)	// (m_bwtDataSize > 30000) Not implemented yet
+		{
+			//assert(0); // TODO this hasn't been tested or debugged!!
+
+			m_readDataFromFiles = true;
+			m_rankArraySize = (m_bwtDataSize / (COUNT_DATA_ARRAY_SIZE * sizeof(unsigned int)))
+				* COUNT_DATA_ARRAY_SIZE;
+
+			if (DEBUG_MODE)
+				cout << "Reading Data From Files" << endl;
+		}
+		else 
+		{
+			// TODO this should be inversely proportional to the file size
+			m_rankArraySize = COUNT_DATA_ARRAY_SIZE * (2000U / sizeof(unsigned int) );	//15000
+
+			if (DEBUG_MODE)
+			{
+				m_rankArraySize = 2 * COUNT_DATA_ARRAY_SIZE;
+				cout << "Reading Data from RAM" << endl;
+			}
+		}
+
+		// TODO make OCCURANCE_INTERVALS a member variable
+		double temp1 = static_cast<double>(m_rankArraySize) / 
+			static_cast<double>(COUNT_DATA_ARRAY_SIZE);
+		if (temp1 > 0)
+			OCCURANCE_INTERVALS = static_cast<unsigned int> ( ceil (
+				static_cast<double>(m_bwtDataSize) / temp1 ) );
+
+		if (OCCURANCE_INTERVALS < 1)
+			OCCURANCE_INTERVALS = 1;
+
+		m_readBuffer = new char[OCCURANCE_INTERVALS + 1];
+		m_rankData = new unsigned int[m_rankArraySize];
+
+
+		// init all values to 0 by incrementing the m_rankData pointer
+		//const unsigned int numOfRankArrayElements
+		//RankT tempArrayPointer = m_rankData;
+		for (unsigned int i = 0; i < m_rankArraySize; i++)
+		{
+			//*tempArrayPointer = 0;
+			//tempArrayPointer++;
+			assert(i < m_rankArraySize);
+			m_rankData[i] = 0;
+		}
+
+
+
+
+
+
 
 		if (DEBUG_MODE)
 			cout << "File lenght = " << m_bwtDataSize << endl;
@@ -50,17 +105,6 @@ namespace bwt {
 		}*/
 
 
-		if (m_bwtDataSize > 30000)
-		{
-			if (DEBUG_MODE)
-				cout << "Reading Data From Files" << endl;
-
-			m_readDataFromFiles = true;
-		}
-		else if (DEBUG_MODE)
-		{
-			cout << "Reading Data from RAM" << endl;
-		}
 	}
 
 
@@ -201,6 +245,7 @@ namespace bwt {
 	unsigned int BWT::RankOcc(const unsigned char c, const unsigned int row)
 	{
 		assert(row <= m_bwtDataSize);
+
 		if (ENABLE_ERROR_MSG && (row > m_bwtDataSize) )
 		{
 			cout << "Row = " << row << " and is bigger than the data size of " 
@@ -211,13 +256,18 @@ namespace bwt {
 		unsigned int startRow = 0;
 		unsigned int occuranceCounter = 0;
 
+		assert(OCCURANCE_INTERVALS > 0);
 		if (row >= OCCURANCE_INTERVALS)
 		{
-			unsigned int quickIndex = (row / OCCURANCE_INTERVALS) - 1;
-			startRow = (quickIndex + 1) * OCCURANCE_INTERVALS;
-			RankMapT firstLetterRank = m_rankData.at(quickIndex);
-			if (firstLetterRank.find(c) != firstLetterRank.end())
-				occuranceCounter = firstLetterRank[c];
+			unsigned int relativeIndex = (row / OCCURANCE_INTERVALS) - 1;
+			unsigned int arrayIndex = (relativeIndex*COUNT_DATA_ARRAY_SIZE) + c;
+			assert(arrayIndex < m_rankArraySize);
+			occuranceCounter = m_rankData[arrayIndex];
+
+			startRow = (relativeIndex + 1) * OCCURANCE_INTERVALS;
+			//RankMapT firstLetterRank = m_rankData.at(quickIndex);
+			//if (firstLetterRank.find(c) != firstLetterRank.end())
+			//	occuranceCounter = firstLetterRank[c];
 		}
 		
 
@@ -252,30 +302,37 @@ namespace bwt {
 		// Construct an index file that takes "snapshots" of the Rank at specified intervals
 		// (i.e. one of the lecturers suggestions)
 
-		RankMapT previousRank;
-		m_rankData.reserve(m_bwtDataSize / OCCURANCE_INTERVALS );
+		//RankMapT previousRank;
+		//m_rankData.reserve(m_bwtDataSize / OCCURANCE_INTERVALS );
 		CountT charCounter = { 0 };
-		//for (int i = 0; i < COUNT_DATA_ARRAY_SIZE; ++i) {
-		//	charCounter[i] = 0;
-		//}
+		unsigned int rankArrayOffset = 0;
 
 		unsigned int i = 0;
 
 		for (unsigned int charIterator = 0; charIterator < m_bwtDataSize; charIterator++)
 		{
 			unsigned char thisChar = m_bwtLastColumn[charIterator];
-			if (previousRank.find(thisChar) == previousRank.end())
-				previousRank[thisChar] = 1;
-			else
-				previousRank[thisChar]++;
-
+			assert(thisChar < COUNT_DATA_ARRAY_SIZE); //We were promised to only get ASCII values less than 128
+			//if (previousRank.find(thisChar) == previousRank.end())
+			//	previousRank[thisChar] = 1;
+			//else
+			
 			charCounter[thisChar]++;
+
 			
 			// TODO copying rank maps like this will use up a lot of memory!
 			// Should store this data in the index file instead?
 			if (OCCURANCE_INTERVALS == ++i)
 			{
-				m_rankData.push_back(previousRank);
+				
+				for (unsigned int it = 0; it < COUNT_DATA_ARRAY_SIZE; it++)
+				{
+					unsigned int thisArrayIndex = rankArrayOffset + it;
+					assert(thisArrayIndex < m_rankArraySize);
+					m_rankData[thisArrayIndex] = charCounter[it];
+				}
+
+				rankArrayOffset += COUNT_DATA_ARRAY_SIZE;
 				i = 0;
 			}
 		}
@@ -301,54 +358,6 @@ namespace bwt {
 		//if( i != 0)
 		//	m_rankData.push_back(previousRank);
 
-
-		// Calculate "count" data for each character
-
-		/*
-		// TODO Sort before counting and jump might take up too much memory for large files??
-		// Ideas: could put the characters in an ordered set (will remove the duplicates)
-
-		// TODO don't copy m_bwtLastColumn for larger files
-		string sortedBwtLastColumn(m_bwtLastColumn);
-		sort( sortedBwtLastColumn.begin(), sortedBwtLastColumn.end() );
-
-		if (DEBUG_MODE)
-		{
-			cout << "sorted last column = " << sortedBwtLastColumn << endl;
-		}
-
-
-		// TODO can just sort out "blocks" like above and then just update the counts
-
-		unsigned int counter = 0;
-		unsigned int prevCounter = 0;
-		unsigned char prevChar = sortedBwtLastColumn.front();
-		i = 0;
-
-		for (unsigned char thisChar : sortedBwtLastColumn)
-		{
-			if (thisChar == prevChar)
-			{
-				counter++;
-				if (i == sortedBwtLastColumn.size() - 1)
-				{
-					// Make sure you update the last one in the list
-					unsigned int nextLetterCount = (prevCounter + counter);
-					m_countOfThisChar[prevChar] = Letter(prevCounter, nextLetterCount);
-				}
-			}
-			else
-			{
-				unsigned int nextLetterCount = (prevCounter + counter);
-				m_countOfThisChar[prevChar] = Letter(prevCounter, nextLetterCount);
-				prevCounter = nextLetterCount;
-				counter = 1;
-			}
-
-			prevChar = thisChar;
-			i++;
-		}
-		*/
 	}
 
 
