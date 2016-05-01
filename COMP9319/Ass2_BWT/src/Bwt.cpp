@@ -48,7 +48,7 @@ namespace bwt {
 				cout << "Reading Data From Files" << endl;
 		}
 		
-		if (m_bwtDataSize > 9000000)
+		if (m_bwtDataSize > 15000000)
 		{
 			m_useIndexFile = true;
 		}
@@ -92,7 +92,6 @@ namespace bwt {
 		}
 		else 
 		{
-			// TODO this should be inversely proportional to the file size
 			m_rankArraySize = COUNT_DATA_ARRAY_SIZE * (32000U / sizeof(unsigned int) );	//15000
 
 			if (DEBUG_MODE)
