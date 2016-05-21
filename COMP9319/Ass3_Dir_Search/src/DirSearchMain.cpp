@@ -45,6 +45,12 @@ int main(int argc, char ** argv)
 	DirSearch dirsearch( cmdStrings[0], indexPercentage);
 	dirsearch.Search(searchStrings);
 
+
+
+
+
+
+
 	return 0;
 }
 

@@ -4,14 +4,16 @@
 #include <cassert>
 #include <algorithm>
 #include <set>
+#include <locale>
 
 // Internal headers
 #include "DirSearch.h"
 #include "HelperFunctions.h"
 
 
-static const bool DEBUG_MODE = false;
-static const bool ENABLE_ERROR_MSG = false;
+static const bool DEBUG_MODE = true;
+static const bool ENABLE_ERROR_MSG = true;
+static const bool DISABLE_CHAR_COMPRESSION = true;	// Disablabe this is if you want to use the 0-26 char range
 
 
 
@@ -22,10 +24,55 @@ using namespace dirsearch::helpers;
 
 namespace dirsearch {
 
+	std::vector<std::string> DirSearch::ConvertString(const std::vector<std::string>& searchStrings)
+	{
+		std::vector<std::string> convertedStrings;
+
+		for (auto nextWord = searchStrings.begin();
+			nextWord != searchStrings.end(); ++nextWord)
+		{
+			std::string newWord;
+
+			for (auto nextChar = (*nextWord).begin();
+				nextChar != (*nextWord).end(); ++nextChar)
+			{
+				if (isalpha(*nextChar))
+				{
+					if (DISABLE_CHAR_COMPRESSION)
+					{
+						newWord.push_back( std::tolower(*nextChar, m_toLowerLocale) );
+					}
+					else if (*nextChar < 'Z')
+					{
+						// If captical letter
+						newWord.push_back((*nextChar) - 'A');
+					}
+					else
+					{
+						newWord.push_back((*nextChar) - 'a');
+					}
+				}
+				else
+				{
+					newWord.push_back(*nextChar);
+				}
+			}
+
+			convertedStrings.push_back(newWord);
+		}
+
+		return convertedStrings;
+	}
+
+
+
 	DirSearch::~DirSearch()
 	{
 		delete[] m_readBuffer;
-		delete[] m_prefixArray;
+		//delete[] m_prefixArray;
+
+		if (DEBUG_MODE)
+			cout << "TODO: Delete the pointers in the m_prefixMap!!!" << endl;
 	}
 
 	DirSearch::DirSearch(const std::string indexFilename, const int indexPercentage
@@ -55,14 +102,93 @@ namespace dirsearch {
 		}
 		else
 		{
-			m_prefixArray = new char[PREFIX_ARRAY_DIM * m_prefixArrayDimension];
+			//m_prefixArray = new char[PREFIX_ARRAY_DIM * m_prefixMapKeyMaxLength];
 		}
+
+
+
+
+
+
+		// TODO read every file in the target directory!!!
+		// test code
+		const char* const fileName = "D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data_Provided/README.txt";
+		short fileArrayIndex = 0;
+		if (DEBUG_MODE)
+			cout << "TODO: remove hard-coded file for creating index" << fileName << endl;
+
+
+		this->CreateIndexForFile(fileName, fileArrayIndex);
 	}
 
 
 	void DirSearch::Search(const std::vector<std::string>& searchStrings )
 	{
+		SuffixFileDataListT* listOfTermFileData = nullptr;
+
+
+		const std::vector<std::string> convertSearchString = ConvertString(searchStrings);
+
+
+		// TODO remove this hard coded search !
+		// test code
+		for (auto searchTerm = convertSearchString.begin();
+			searchTerm != convertSearchString.end(); ++searchTerm)
+		{
+			listOfTermFileData = this->SearchAllFiles(*searchTerm);
+
+			if (listOfTermFileData != nullptr)
+			{
+				if (DEBUG_MODE)
+				{
+					for (auto fileDataForTerm = listOfTermFileData->begin();
+						fileDataForTerm != listOfTermFileData->end(); ++fileDataForTerm)
+					{
+						cout << "Results for term: " << *searchTerm <<
+							" for file index: " << (*fileDataForTerm)->m_fileIndex <<
+							" word count = " << (*fileDataForTerm)->m_wordCount << endl;
+					}
+				}
+			}
+		}
+
 	}
+
+
+
+
+	SuffixFileDataListT* DirSearch::SearchAllFiles(const std::string& searchTerm)
+	{
+		SuffixFileDataListT* listOfTermFileData = nullptr;
+
+		short fileArrayIndex = 0;
+		if (DEBUG_MODE)
+			cout << "TODO: remove hard-coded file file index for the search: " << fileArrayIndex << 
+				" and the hardcoded search term: " << endl;
+
+
+		// TODO test for "spaces" when doing the "phrase search!"
+
+
+		if (searchTerm.length() <= static_cast<std::size_t>(m_prefixMapKeyMaxLength))
+		{
+			// if the whole word is small enough to be a key on the map, then
+			// no suffix is required
+			listOfTermFileData = SearchPreFixMap(searchTerm, "");
+		}
+		else
+		{
+			// else the whole word isn't small enough to be a key on the map
+			// so need to store it's prefix on map and its suffix on the list
+			// of suffixs for that map
+			string prefix = searchTerm.substr(0, m_prefixMapKeyMaxLength);
+			string suffix = searchTerm.substr(m_prefixMapKeyMaxLength);
+			listOfTermFileData = SearchPreFixMap(prefix, suffix);
+		}
+
+		return listOfTermFileData;
+	}
+
 
 
 
@@ -71,24 +197,48 @@ namespace dirsearch {
 		startSearch,
 		traversingNonAlpha,
 		traversingPrefixArray,
+		traversingOversizedWord,
 		readingSuffix
 	};
 
 
-
-	void DirSearch::SearchFile(const char* const fileName, short fileArrayIndex)
+	void DirSearch::CreateIndexForFile(const char* const fileName, short fileArrayIndex)
 	{
-		//SuffixArrayT prefixPath = new char[m_prefixArrayDimension];
-		//SuffixArrayT suffixPath = new char[m_maxExpectedWordSize];
-		string prefixPath;
-		string suffixPath;
+		//SuffixArrayT m_prefixPath = new char[m_prefixMapKeyMaxLength];
+		//SuffixArrayT m_suffixPath = new char[m_maxExpectedWordSize];
 
 		try
 		{
 			std::ifstream inputFile(fileName);
-			m_indexFile.seekg(0, ios::end);
-			unsigned int fileSize = static_cast<unsigned int>(m_indexFile.tellg());
-			m_indexFile.seekg(0, ios::beg);
+			inputFile.seekg(0, ios::end);
+			unsigned int fileSize = static_cast<unsigned int>(inputFile.tellg());
+			inputFile.seekg(0, ios::beg);
+			m_fileWordCount = 0;
+			
+			
+			
+
+
+
+
+
+
+			// TODO Need to varry this based on size!
+			char minNumOfPatterBitsRequired = 2;
+			m_initPitPatternList.clear();
+			for (char i = 0; i < minNumOfPatterBitsRequired; i++)
+			{
+				m_initPitPatternList.push_back(0);
+			}
+
+
+
+
+
+
+
+
+
 
 			if (fileSize > m_maxFileSize)
 			{
@@ -103,10 +253,20 @@ namespace dirsearch {
 				m_readBuffer = new char[m_readBufferSize + 1];
 			}
 
-			// TODO depending on what Raymond says in this thread:
+			// Based on what Raymond says in this thread:
 			// http://webapps.cse.unsw.edu.au/webcms2/messageboard/viewmessage.php?cid=2440&topicid=6272&threadid=11104
-			// I may need to read the file in smaller blocks
+			// I need to read the file in smaller blocks, because a file could be up to 10MB (although not likely)
+			if (DEBUG_MODE)
+				cout << "TODO: Read buffer files in smaller blocks!!!" << endl;
+			
 			inputFile.read(m_readBuffer, fileSize);
+
+			if (!inputFile )
+			{
+				if (DEBUG_MODE || ENABLE_ERROR_MSG)
+					cerr << "Could not open input file: " << fileName << endl;
+				return;
+			}
 
 			// Get all of the "tokens"
 			/*
@@ -124,7 +284,6 @@ namespace dirsearch {
 			bool startNewWord = true;
 			bool wordInserted = false;
 			unsigned int arrayIndexBase = 0;
-			unsigned int currentWordPosition = 0;
 			SearchState searchMode = startSearch;
 			m_tempExistingWordMap.clear();
 
@@ -132,86 +291,106 @@ namespace dirsearch {
 			{
 				// TODO The "m_bwtLastColumn" is a "fixed" sized unsigned char array and use this
 				// for smaller files!
-				nextChar = m_readBuffer[i++];
+				nextChar = m_readBuffer[i];
 
-				if (isalpha(nextChar) == 0)
+				if ( m_currentWordLength >(MAX_SEARCH_WORD_SIZE - 1) )
+				{
+					searchMode = traversingOversizedWord;
+				}
+
+				if( (isalpha(nextChar) == 0) )
 				{
 					// If not an alpha value
 
-					if (searchMode == traversingPrefixArray)
+					if(searchMode != traversingOversizedWord)
 					{
-						// TODO this word is shorter than the m_prefixArrayDimension size
-						// put it as the "empty string" value
-
 						// Put this in a function and call at end too
-						
-						InsertWord(prefixPath, suffixPath, --currentWordPosition);
-					}
-					else if (searchMode == readingSuffix)
-					{
-						// TODO reached the end of the string, so enter it's data
-
-						// Put this in a function and call at end too
-						InsertWord(prefixPath, suffixPath, --currentWordPosition);
+						this->InsertWord();
 					}
 
 					startNewWord = true;
 					arrayIndexBase = 0;
-					currentWordPosition = 0;
-					prefixPath.clear();
-					suffixPath.clear();
+					m_prefixPath.clear();
+					m_suffixPath.clear();
+					m_currentWordLength = 0;
+					searchMode = startSearch;
 				}
-				else
+				// If this is an alpha value and not traversing oversized word
+				else if (searchMode != traversingOversizedWord) 
 				{
-					// If this is an alpha value
-
-					if (currentWordPosition > m_maxExpectedWordSize)
+					if (DISABLE_CHAR_COMPRESSION)
 					{
-						// Need to increase the size of the array
-						m_maxExpectedWordSize += m_maxExpectedWordSize;
-					}
-
-
-					// convert char to case insensitive offset value relative to 0 (i.e. value [0-25])
-					if (nextChar < 'Z')
-					{
-						// If captical letter
-						convertedChar = nextChar - 'A';
+						convertedChar = std::tolower(nextChar, m_toLowerLocale);
 					}
 					else
 					{
-						convertedChar = nextChar - 'a';
+						// convert char to case insensitive offset value relative to 0 (i.e. value [0-25])
+						if (nextChar < 'Z')
+						{
+							// If captical letter
+							convertedChar = nextChar - 'A';
+						}
+						else
+						{
+							convertedChar = nextChar - 'a';
+						}
 					}
 
-					if (currentWordPosition < m_prefixArrayDimension)
+					if (m_currentWordLength < m_prefixMapKeyMaxLength)
 					{
 						searchMode = traversingPrefixArray;
-						prefixPath.push_back(convertedChar);
+						m_prefixPath.push_back(convertedChar);
 						// Continue "traversing" the prefix array to find the "leaf node" it represents
 					}
 					else
 					{
 						searchMode = readingSuffix;
-						suffixPath.push_back(convertedChar);
+						m_suffixPath.push_back(convertedChar);
 					}
 				}
 
-
-				currentWordPosition++;
+				m_currentWordLength++;
 			}
+
+
 
 			// Tidy up the last word (if it ends with a alpha char)
-			if (searchMode == traversingPrefixArray)
+			if( (searchMode == traversingPrefixArray) || (searchMode == readingSuffix) )
 			{
-				// TODO this word is shorter than the m_prefixArrayDimension size
-				// put it as the "empty string" value
-				InsertWord(prefixPath, suffixPath, --currentWordPosition);
+				// Put this in a function and call at end too
+				this->InsertWord();
 			}
-			else if (searchMode == readingSuffix)
+
+
+			// Now transfer the "m_tempExistingWordMap" onto the "m_prefixMap"
+			for (auto nextWord = m_tempExistingWordMap.begin();
+				nextWord != m_tempExistingWordMap.end(); ++nextWord)
 			{
-				// TODO reached the end of the string, so enter it's data
-				InsertWord(prefixPath, suffixPath, --currentWordPosition);
+				const string& wholeWord = nextWord->first;
+				int fileWordCount = nextWord->second;
+
+				if ( wholeWord.length() <= static_cast<std::size_t>( m_prefixMapKeyMaxLength) )
+				{
+					// if the whole word is small enough to be a key on the map, then
+					// no suffix is required
+					InsertIntoPrefixMap(wholeWord, "", fileArrayIndex, fileWordCount);
+				}
+				else
+				{
+					// else the whole word isn't small enough to be a key on the map
+					// so need to store it's prefix on map and its suffix on the list
+					// of suffixs for that map
+					string prefix = wholeWord.substr(0, m_prefixMapKeyMaxLength);
+					string suffix = wholeWord.substr(m_prefixMapKeyMaxLength);
+					InsertIntoPrefixMap(prefix, suffix, fileArrayIndex, fileWordCount);
+				}
 			}
+
+
+
+
+
+
 
 
 
@@ -229,33 +408,104 @@ namespace dirsearch {
 		catch ( std::exception e)
 		{
 			assert(0);
-			if (DEBUG_MODE)
-				cerr << "DirSearch::SearchFile threw following exception! " << e.what() << endl;
+			if (DEBUG_MODE || ENABLE_ERROR_MSG)
+				cerr << "DirSearch::CreateIndexForFile threw following exception! " << e.what() << endl;
 		}
 		catch (...)
 		{
 			assert(0);
-			if (DEBUG_MODE)
-				cerr << "DirSearch::SearchFile threw unknown exception! " << endl;
+			if (DEBUG_MODE || ENABLE_ERROR_MSG)
+				cerr << "DirSearch::CreateIndexForFile threw unknown exception! " << endl;
 		}
 
-		//delete[] suffixPath;
-		//delete[] prefixPath;
+		//delete[] m_suffixPath;
+		//delete[] m_prefixPath;
+	}
+
+
+	void DirSearch::InsertIntoPrefixMap(const std::string & prefix, const std::string & suffix,
+		const short fileArrayIndex, const int fileWordCount)
+	{
+		if (m_prefixMap.find(suffix) == m_prefixMap.end())
+		{
+			Suffix* newSuffix = new Suffix(prefix);
+			newSuffix->InsertSuffix(suffix, new SuffixFileData(fileArrayIndex, fileWordCount));
+			m_prefixMap.insert(std::pair<std::string, Suffix*>(prefix, newSuffix ) );
+		}
+		else
+		{
+			m_prefixMap[suffix]->InsertSuffix(
+				suffix, new SuffixFileData(fileArrayIndex, fileWordCount));
+		}
+	}
+
+	
+	SuffixFileDataListT* DirSearch::SearchPreFixMap(const std::string& prefix, const std::string& suffix)
+	{
+		if (m_prefixMap.find(prefix) == m_prefixMap.end())
+		{
+			return nullptr;
+		}
+		else
+		{
+			return m_prefixMap[prefix]->GetFileData(suffix);
+		}
 	}
 
 
 
 
-
-	void DirSearch::InsertWord(std::string& prefixPath, std::string& suffixPath, unsigned int currentWordPosition)
+	void DirSearch::InsertWord()
 	{
-		if (currentWordPosition < m_prefixArrayDimension)
+		if ( (m_currentWordLength < MIN_SEARCH_WORD_SIZE) || 
+			(m_currentWordLength > (MAX_SEARCH_WORD_SIZE -1) ) )
 		{
+			// Not searching for words less than 3 char long or more than 256 char long,
+			// so dont store these words
+			return;
+		}
 
+		//else if (m_currentWordLength < m_prefixMapKeyMaxLength)
+		//{
+			// Only need to insert the "prefix" (i.e. the suffix can be empty)
 			// Store a map of currently inserted words and init the bitpattern variables for the new words 
 			// for this file
+			//PrefixMapT
 
+
+		// TODO (replace with "m_prefixPath" and suffix version with just one string for the whole word
+		const string wholeWord = m_prefixPath + m_suffixPath;
+			
+		if ( m_tempExistingWordMap.find(wholeWord) == m_tempExistingWordMap.end())
+		{
+			m_tempExistingWordMap[wholeWord] = 1;// m_initPitPatternList; // TODO for when I use bit pattern
 		}
+		else
+		{
+			m_tempExistingWordMap[wholeWord]++;
+		}
+
+		//m_currentWordBlock.push_back(wholeWord);
+
+		//}
+		//else
+		//{
+		//	// Need to include the suffix as well
+		//}
+
+		// TODO this is how I would set the "bit patterns" for when I implement "Phrase search"
+		//if (++m_fileWordCount > m_wordBlockSize)
+		//{
+		//	int tempWordCount = 0;
+		//	// Once the current block has reached it's limit go through the list of 
+		//	// words set their "bit patterns"
+		//	for ( auto existingSuffixes = m_currentWordBlock.begin();
+		//		existingSuffixes != m_currentWordBlock.end(); ++existingSuffixes)
+		//	{
+		//		// TODO For now don't worry about the order, just make sure the correct
+		//		// number of bits are set
+		//	}
+		//}
 	}
 
 
