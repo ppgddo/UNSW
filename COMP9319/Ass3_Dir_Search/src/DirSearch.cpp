@@ -6,12 +6,20 @@
 #include <set>
 #include <locale>
 
+#ifndef  _WIN32
+// Linux only headers
+#include <sys/types.h>
+#include <dirent.h>
+#endif // ! _WIN32
+
+
+
 // Internal headers
 #include "DirSearch.h"
 #include "HelperFunctions.h"
 
 
-static const bool DEBUG_MODE = true;
+static const bool DEBUG_MODE = false;
 static const bool ENABLE_ERROR_MSG = true;
 static const bool DISABLE_CHAR_COMPRESSION = true;	// Disablabe this is if you want to use the 0-26 char range
 
@@ -107,25 +115,91 @@ namespace dirsearch {
 
 
 
+#ifndef  _WIN32
+		
+		DIR *dpdf;
+		struct dirent *epdf;
+		std::string dirName = "../Test_Data/man/";
+		//std::string dirName = "./";
+
+		//dpdf = opendir("./");
+		//dpdf = opendir("~cs9319/a3/books200m/");
+		dpdf = opendir(dirName.c_str());
+
+		std::list<std::string> filesInDir;
+		if (dpdf != NULL) 
+		{
+			short i = 0;
+			while (epdf = readdir(dpdf)) 
+			{
 
 
+				
+
+				if( (string(epdf->d_name) != ".") && (string(epdf->d_name) != ".." ) )
+				{
+					std::string fullPathString = dirName + string(epdf->d_name);
+					filesInDir.push_back(fullPathString);
+					//if (DEBUG_MODE)
+					std::cout << epdf->d_name << std::endl;
+				}
+				//const char* const fullpathName = dirName.c_str();
+				//this->CreateIndexForFile(fullPathString.c_str(), i++);
+
+			}
+
+			closedir(dpdf);
+		}
+		else if (DEBUG_MODE)
+			std::cout << "Couldn't open direcot: " << dirName << std::endl;
+		
+		
+
+		short fileArrayIndex = 0;
+                //string fileName = "README.txt";
+		//auto fileName = filesInDir.begin();
+		for (auto fileName = filesInDir.begin();
+			fileName != filesInDir.end(); ++fileName)
+		{
+			
+			//this->CreateIndexForFile(fileName.c_str(), fileArrayIndex++);
+			this->CreateIndexForFile((*fileName).c_str(), fileArrayIndex++);
+		}
+
+
+
+
+
+
+#else
 
 		// TODO read every file in the target directory!!!
 		// test code
-		const char* const fileName = "D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data_Provided/README.txt";
+		const char* const fileName =
+			//"DirSearch.cpp";
+			"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data_Provided/legal1/07_1062.xml";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data_Provided/legal1/06_1243.xml";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data_Provided/README.txt";
 		short fileArrayIndex = 0;
 		if (DEBUG_MODE)
 			cout << "TODO: remove hard-coded file for creating index" << fileName << endl;
 
-
 		this->CreateIndexForFile(fileName, fileArrayIndex);
+
+#endif // ! _WIN32
+
+
 	}
 
 
 	void DirSearch::Search(const std::vector<std::string>& searchStrings )
 	{
-		SuffixFileDataListT* listOfTermFileData = nullptr;
+		if (DEBUG_MODE)
+		{
+			cout << "Searching for terms..." << endl << endl;
+		}
 
+		SuffixFileDataListT* listOfTermFileData = nullptr;
 
 		const std::vector<std::string> convertSearchString = ConvertString(searchStrings);
 
@@ -144,14 +218,19 @@ namespace dirsearch {
 					for (auto fileDataForTerm = listOfTermFileData->begin();
 						fileDataForTerm != listOfTermFileData->end(); ++fileDataForTerm)
 					{
-						cout << "Results for term: " << *searchTerm <<
-							" for file index: " << (*fileDataForTerm)->m_fileIndex <<
-							" word count = " << (*fileDataForTerm)->m_wordCount << endl;
+						cout << "Results for term: \'" << *searchTerm <<
+							"\' from file index: " << (*fileDataForTerm)->m_fileIndex <<
+							" has word count = " << (*fileDataForTerm)->m_wordCount << endl;
 					}
 				}
 			}
 		}
 
+
+		if (DEBUG_MODE)
+		{
+			cout << "Finished search" << endl << endl;
+		}
 	}
 
 
@@ -162,9 +241,9 @@ namespace dirsearch {
 		SuffixFileDataListT* listOfTermFileData = nullptr;
 
 		short fileArrayIndex = 0;
-		if (DEBUG_MODE)
-			cout << "TODO: remove hard-coded file file index for the search: " << fileArrayIndex << 
-				" and the hardcoded search term: " << endl;
+		//if (DEBUG_MODE)
+		//	cout << "TODO: remove hard-coded file file index for the search: " << fileArrayIndex << 
+		//		" and the hardcoded search term: " << endl;
 
 
 		// TODO test for "spaces" when doing the "phrase search!"
@@ -248,8 +327,9 @@ namespace dirsearch {
 			if (fileSize > m_readBufferSize)
 			{
 				// Will need to increase the size of the read buffer
-				delete[] m_readBuffer;
-				m_readBufferSize += m_readBufferSize;
+				if(m_readBuffer)
+					delete[] m_readBuffer;
+				m_readBufferSize = fileSize;
 				m_readBuffer = new char[m_readBufferSize + 1];
 			}
 
@@ -257,7 +337,14 @@ namespace dirsearch {
 			// http://webapps.cse.unsw.edu.au/webcms2/messageboard/viewmessage.php?cid=2440&topicid=6272&threadid=11104
 			// I need to read the file in smaller blocks, because a file could be up to 10MB (although not likely)
 			if (DEBUG_MODE)
-				cout << "TODO: Read buffer files in smaller blocks!!!" << endl;
+			{
+				static bool oneShotFlag = false;
+				if (!oneShotFlag)
+				{
+					cout << "TODO: Read buffer files in smaller blocks!!!" << endl;
+					oneShotFlag = true;
+				}
+			}
 			
 			inputFile.read(m_readBuffer, fileSize);
 
@@ -267,7 +354,11 @@ namespace dirsearch {
 					cerr << "Could not open input file: " << fileName << endl;
 				return;
 			}
-
+			else if (DEBUG_MODE)
+			{
+				cout << "Successfully Opened file: " << fileName << ", of size: "
+					 << fileSize << endl;
+			}
 			// Get all of the "tokens"
 			/*
 			char* token = strtok(m_readBuffer, " ");

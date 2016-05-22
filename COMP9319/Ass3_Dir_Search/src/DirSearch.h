@@ -18,7 +18,7 @@ namespace dirsearch
 		{}
 
 		short m_fileIndex;
-		int m_wordCount;
+		unsigned int m_wordCount;
 		//std::list<char> m_bitPatterns;	// TODO use this instead when I implement "Phrase search"
 
 	private:
@@ -244,8 +244,8 @@ namespace dirsearch
 		const int m_dirsearchDataSize;
 		unsigned int m_maxFileSize = 0;
 		char* m_readBuffer = nullptr;
-		unsigned int m_readBufferSize = 256 * 256;	// TODO might need to increase this!
-		char m_prefixMapKeyMaxLength = 5;			// This is the default unless the m_useIndexFile is set
+		unsigned int m_readBufferSize = 10000000;	// 256 * 256;	// TODO will need to increase this!
+		char m_prefixMapKeyMaxLength = 3;			// This is the default unless the m_useIndexFile is set
 		int m_maxExpectedWordSize = 256;	// This will increase if a larger word is discovered
 		
 		
