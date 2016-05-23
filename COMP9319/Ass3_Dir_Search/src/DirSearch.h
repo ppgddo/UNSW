@@ -11,13 +11,13 @@ namespace dirsearch
 {
 	struct SuffixFileData
 	{
-		SuffixFileData( short fileIndex, int wordCount ) // std::list<char> & bitPatterns)
+		SuffixFileData( short fileIndex, unsigned int wordCount ) // std::list<char> & bitPatterns)
 			: m_fileIndex(fileIndex)
 			, m_wordCount(wordCount)
 			//, m_bitPatterns(bitPatterns)
 		{}
 
-		short m_fileIndex;
+		unsigned short m_fileIndex;
 		unsigned int m_wordCount;
 		//std::list<char> m_bitPatterns;	// TODO use this instead when I implement "Phrase search"
 
@@ -34,36 +34,37 @@ namespace dirsearch
 	struct SuffixData
 	{
 	public:
-		SuffixData(const std::string& suffixString)
+		SuffixData(const char* const suffixString)
 			: m_suffixString(suffixString)
 		{
-			m_suffixFileData = new SuffixFileDataListT;
+			//m_suffixFileData = new SuffixFileDataListT;
 		}
 
 
 		~SuffixData()
 		{
 			// TODO delete the pointers on the m_suffixFileData as well!
-			delete m_suffixFileData;
+			//delete m_suffixFileData;
 		}
 
 		void InsertFileData(SuffixFileData* suffixFileData)
 		{
 			// Update the file data
-			m_suffixFileData->push_back(suffixFileData);
+			//m_suffixFileData->push_back(suffixFileData);
 		}
 
 
 		SuffixFileDataListT * GetFileData()
 		{
-			return m_suffixFileData;
+			return nullptr;
+			//return m_suffixFileData;
 		}
 
 
-		const std::string m_suffixString;
+		const char* const  m_suffixString;
 		// Put all data for each "suffix" for a given "prefix" 
-		// i.e. search word = preffix (key of PrefixMap) + suffix
-		SuffixFileDataListT * m_suffixFileData;
+		// i.e. search word = preffix (key of WordMap) + suffix
+		//SuffixFileDataListT * m_suffixFileData;
 
 		/*
 		Suffix(Suffix&& other) : m_singleSuffix(nullptr), m_suffixList(nullptr)
@@ -89,7 +90,7 @@ namespace dirsearch
 	public:
 		typedef std::list<SuffixData*> SuffixListT;
 
-		Suffix(const std::string& suffixString)
+		Suffix(const char* const suffixString)
 			: m_singleSuffix(new SuffixData(suffixString))
 		{}
 
@@ -106,14 +107,14 @@ namespace dirsearch
 		}
 
 
-		SuffixFileDataListT* GetFileData(const std::string& suffixString)
+		SuffixFileDataListT* GetFileData(const char* const suffixString)
 		{
 			if ((m_suffixList != nullptr))
 			{
 				for (auto existingSuffixes = m_suffixList->begin();
-				existingSuffixes != m_suffixList->end(); ++existingSuffixes)
+					existingSuffixes != m_suffixList->end(); ++existingSuffixes)
 				{
-					if (suffixString == (*existingSuffixes)->m_suffixString)
+					if (std::string(suffixString) == std::string((*existingSuffixes)->m_suffixString) )
 					{
 						return (*existingSuffixes)->GetFileData();
 					}
@@ -125,7 +126,8 @@ namespace dirsearch
 			{
 				// Just return the m_singleSuffix data
 				assert(m_singleSuffix != nullptr);
-				if ((m_singleSuffix != nullptr) && (m_singleSuffix->m_suffixString != suffixString))
+				if ( (m_singleSuffix != nullptr) && 
+					std::string(m_singleSuffix->m_suffixString) != std::string(suffixString) )
 				{
 					return m_singleSuffix->GetFileData();
 				}
@@ -137,7 +139,7 @@ namespace dirsearch
 		}
 
 
-		void InsertSuffix(const std::string& suffix, SuffixFileData* suffixFileData)
+		void InsertSuffix(const char* const suffix, SuffixFileData* suffixFileData)
 		{
 			if ((m_suffixList != nullptr))
 			{
@@ -206,10 +208,11 @@ namespace dirsearch
 		static const unsigned int MIN_SEARCH_WORD_SIZE = 3;
 		static const unsigned int MAX_SEARCH_WORD_SIZE = 256;
 
-		//typedef unsigned char SuffixArrayT[PREFIX_ARRAY_DIM*m_prefixMapKeyMaxLength];
-		typedef std::unordered_map<std::string, Suffix* > PrefixMapT;
+		//typedef unsigned char SuffixArrayT[PREFIX_ARRAY_DIM*m_wordMapKeyMaxLength];
+		//typedef std::unordered_map<std::string, Suffix* > WordMapT;
+		typedef std::unordered_map<std::string, unsigned int > WordDataMapT;
 		//typedef std::unordered_map<std::string, std::list<char> > ExistingWordMapT;	// for "bit pattern" impl
-		typedef std::unordered_map<std::string, int > ExistingWordMapT;
+		typedef std::unordered_map<std::string, bool > ExistingWordMapT;
 		typedef char* FilenameArrayT[2000];
 
 		DirSearch(const std::string indexFilename, const int indexPercentage);
@@ -227,15 +230,15 @@ namespace dirsearch
 
 		SuffixFileDataListT* SearchAllFiles(const std::string& searchTerm);
 
-		void InsertIntoPrefixMap(const std::string & prefix, const std::string & suffix, const short fileArrayIndex, const int fileWordCount);
-		SuffixFileDataListT* SearchPreFixMap(const std::string & prefix, const std::string & suffix);
+		void InsertIntoWordMap(const std::string & prefix, const char* const suffix, const short fileArrayIndex, const int fileWordCount);
+		SuffixFileDataListT* SearchWordMap(const std::string & prefix, const std::string & suffix);
 
 		std::vector<std::string> ConvertString(const std::vector<std::string>& searchStrings);
 
 	private:
 		// Private data members
 		std::fstream m_indexFile;
-		PrefixMapT m_prefixMap;
+		WordDataMapT m_wordMap;
 		int m_indexFileSize;
 		bool m_useIndexFile = false;
 		bool m_createIndexFile = false;
@@ -244,9 +247,9 @@ namespace dirsearch
 		const int m_dirsearchDataSize;
 		unsigned int m_maxFileSize = 0;
 		char* m_readBuffer = nullptr;
-		unsigned int m_readBufferSize = 10000000;	// 256 * 256;	// TODO will need to increase this!
-		char m_prefixMapKeyMaxLength = 3;			// This is the default unless the m_useIndexFile is set
-		int m_maxExpectedWordSize = 256;	// This will increase if a larger word is discovered
+		unsigned int m_readBufferSize = 1000000;	// 256 * 256;	// TODO will need to increase this!
+		char m_wordMapKeyMaxLength = MAX_SEARCH_WORD_SIZE - 1;			// This is the default unless the m_useIndexFile is set
+		//int m_maxExpectedWordSize = 256;	// This will increase if a larger word is discovered
 		
 		
 		// Used by the CreateIndexForFile() and InsertWord() functions

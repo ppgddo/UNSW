@@ -43,7 +43,7 @@ int main(int argc, char ** argv)
 	
 	// No need to pass the "
 	DirSearch dirsearch( cmdStrings[0], indexPercentage);
-	dirsearch.Search(searchStrings);
+	//dirsearch.Search(searchStrings);
 
 
 
