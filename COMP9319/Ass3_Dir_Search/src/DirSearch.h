@@ -215,7 +215,7 @@ namespace dirsearch
 		typedef std::unordered_map<std::string, bool > ExistingWordMapT;
 		typedef char* FilenameArrayT[2000];
 
-		DirSearch(const std::string indexFilename, const int indexPercentage);
+		DirSearch(const std::string indexFilename, const unsigned int indexPercentage);
 
 		~DirSearch();
 
@@ -235,6 +235,8 @@ namespace dirsearch
 
 		std::vector<std::string> ConvertString(const std::vector<std::string>& searchStrings);
 
+		void ConstructIndexFile();
+
 	private:
 		// Private data members
 		std::fstream m_indexFile;
@@ -242,15 +244,15 @@ namespace dirsearch
 		int m_indexFileSize;
 		bool m_useIndexFile = false;
 		bool m_createIndexFile = false;
-		const int m_indexPercentage = 20;
+		const unsigned int m_indexPercentage = 20;
 		std::string m_indexFilename;
-		const int m_dirsearchDataSize;
+		const unsigned int m_dirsearchDataSize;
 		unsigned int m_maxFileSize = 0;
 		char* m_readBuffer = nullptr;
 		unsigned int m_readBufferSize = 1000000;	// 256 * 256;	// TODO will need to increase this!
 		char m_wordMapKeyMaxLength = MAX_SEARCH_WORD_SIZE - 1;			// This is the default unless the m_useIndexFile is set
 		//int m_maxExpectedWordSize = 256;	// This will increase if a larger word is discovered
-		
+		bool m_putMapWordKeysInIndexFile = true;
 		
 		// Used by the CreateIndexForFile() and InsertWord() functions
 		ExistingWordMapT m_tempExistingWordMap;

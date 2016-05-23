@@ -23,6 +23,9 @@ static const bool DEBUG_MODE = false;
 static const bool ENABLE_ERROR_MSG = true;
 static const bool DISABLE_CHAR_COMPRESSION = true;	// Disablabe this is if you want to use the 0-26 char range
 
+static const unsigned int SIZE_OF_UNSIGNED_SHORT = sizeof(unsigned short);
+static const unsigned int SIZE_OF_UNSIGNED_INT = sizeof(unsigned int);
+
 
 
 
@@ -83,20 +86,21 @@ namespace dirsearch {
 			cout << "TODO: Delete the pointers in the m_wordMap!!!" << endl;
 	}
 
-	DirSearch::DirSearch(const std::string indexFilename, const int indexPercentage
+
+	DirSearch::DirSearch(const std::string indexFilename, const unsigned int indexPercentage
 			 )
 		: m_indexFilename(indexFilename)
 		, m_indexPercentage(indexPercentage)
-		, m_dirsearchDataSize(0)	// TODO where should this be cacluated?
+		, m_dirsearchDataSize(-1)	// TODO where should this be cacluated?
 	{
 		m_readBuffer = new char[m_readBufferSize + 1];
 		
 		if (DEBUG_MODE)
 			cout << "File lenght = " << m_dirsearchDataSize << endl;
 
-		if (m_dirsearchDataSize > 60000000)
+		if (m_dirsearchDataSize	>= 0)	//> 60000000) // If more than 60MB, store everthing in the index file
 		{
-			// If more than 60MB, store everthing in the index file
+			// For now I will use index file every time
 			m_useIndexFile = true;
 		}
 		else if(DEBUG_MODE && (m_dirsearchDataSize > 2) )
@@ -107,6 +111,26 @@ namespace dirsearch {
 
 		if (m_useIndexFile)
 		{
+			m_indexFile.open(m_indexFilename, ios::in | ios::binary);
+
+			m_indexFile.seekg(0, ios::end);
+			m_indexFileSize = static_cast<unsigned int>(m_indexFile.tellg());
+			m_indexFile.seekg(0, ios::beg);
+
+			if (m_indexFile.good() && (m_indexFileSize > 0))
+			{
+				// If the file already exists, then we can assume it's the correct one and use it
+				// This is one of the contraints we were given
+				assert(m_indexFileSize <= indexPercentage*m_dirsearchDataSize); 
+			}
+			else
+			{
+				// If it is empty, we must create one for the next runs
+				m_indexFile.close();
+				m_indexFileSize = 0;
+				m_createIndexFile = true;
+				m_indexFile.open(m_indexFilename, ios::out | ios::binary);
+			}
 		}
 		else
 		{
@@ -179,9 +203,9 @@ namespace dirsearch {
 		// test code
 		const char* const fileName =
 			//"DirSearch.cpp";
-			"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data_Provided/legal1/07_1062.xml";
-			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data_Provided/legal1/06_1243.xml";
-			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data_Provided/README.txt";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1/07_1062.xml";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1/06_1243.xml";
+			"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/README.txt";
 		short fileArrayIndex = 0;
 		if (DEBUG_MODE)
 			cout << "TODO: remove hard-coded file for creating index" << fileName << endl;
@@ -190,7 +214,8 @@ namespace dirsearch {
 
 #endif // ! _WIN32
 
-
+		if(m_createIndexFile)
+			this->ConstructIndexFile();
 	}
 
 
@@ -616,6 +641,27 @@ namespace dirsearch {
 
 
 
+
+
+	void DirSearch::ConstructIndexFile()
+	{
+		if (m_putMapWordKeysInIndexFile)
+		{
+			
+
+			for (auto nextWord = m_wordMap.begin();
+				nextWord != m_wordMap.end(); ++nextWord)
+			{
+				string nextString = (*nextWord).first.c_str();
+				m_indexFile.write(nextString.c_str(), nextString.size() );
+				long pos = m_indexFile.tellp();
+				pos += (SIZE_OF_UNSIGNED_SHORT + SIZE_OF_UNSIGNED_INT);
+				m_indexFile.seekp(pos);
+			}
+		}
+
+
+	}
 
 
 
