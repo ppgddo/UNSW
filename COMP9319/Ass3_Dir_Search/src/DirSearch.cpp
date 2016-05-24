@@ -571,7 +571,10 @@ namespace dirsearch {
 
 	void DirSearch::CullWordMap()
 	{
-		// If the map is getting to big, cull until it gets about 10% smaller
+		// If the map is getting to big, cull the least fequent ones until 
+		// it gets about 10% smaller by incrementing the "cull frequency threshold".
+		// e.g cull words that only have 2 words, then 3 etc until you cull enough
+		// to get rid of about 10%.
 
 	}
 

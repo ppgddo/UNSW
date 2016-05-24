@@ -258,7 +258,7 @@ namespace dirsearch
 		std::vector<std::string> ConvertString(const std::vector<std::string>& searchStrings);
 
 		void ConstructIndexFile();
-		void CullWordMap()
+		void CullWordMap();
 
 	private:
 		// Private data members
