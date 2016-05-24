@@ -84,6 +84,9 @@ namespace dirsearch {
 
 		if (DEBUG_MODE)
 			cout << "TODO: Delete the pointers in the m_wordMap!!!" << endl;
+
+		cout << "TODO: For the search terms replace double letters with capitals to be consistant!!!!!!!" << endl;
+		cout << "Map size = " << m_wordMapSize << endl;
 	}
 
 
@@ -214,8 +217,11 @@ namespace dirsearch {
 
 #endif // ! _WIN32
 
-		if(m_createIndexFile)
+		if (m_createIndexFile)
+		{
 			this->ConstructIndexFile();
+			m_indexConstructionState = WordCounting;
+		}
 	}
 
 
@@ -273,24 +279,14 @@ namespace dirsearch {
 		//		" and the hardcoded search term: " << endl;
 
 
+
 		// TODO test for "spaces" when doing the "phrase search!"
 
 
-		if (searchTerm.length() <= static_cast<std::size_t>(m_wordMapKeyMaxLength))
-		{
-			// if the whole word is small enough to be a key on the map, then
-			// no suffix is required
-			listOfTermFileData = SearchWordMap(searchTerm, "");
-		}
-		else
-		{
-			// else the whole word isn't small enough to be a key on the map
-			// so need to store it's prefix on map and its suffix on the list
-			// of suffixs for that map
-			string prefix = searchTerm.substr(0, m_wordMapKeyMaxLength);
-			string suffix = searchTerm.substr(m_wordMapKeyMaxLength);
-			listOfTermFileData = SearchWordMap(prefix, suffix);
-		}
+
+		// if the whole word is small enough to be a key on the map, then
+		// no suffix is required
+		listOfTermFileData = SearchWordMap(searchTerm);
 
 		return listOfTermFileData;
 	}
@@ -302,16 +298,13 @@ namespace dirsearch {
 	{
 		startSearch,
 		traversingNonAlpha,
-		traversingPrefixArray,
-		traversingOversizedWord,
-		readingSuffix
+		readingAlphaString,
+		traversingOversizedWord
 	};
 
 
 	void DirSearch::CreateIndexForFile(const char* const fileName, short fileArrayIndex)
 	{
-		//SuffixArrayT m_prefixPath = new char[m_wordMapKeyMaxLength];
-		//SuffixArrayT m_suffixPath = new char[m_maxExpectedWordSize];
 
 		try
 		{
@@ -399,6 +392,8 @@ namespace dirsearch {
 
 			char nextChar = 0;
 			char convertedChar = 0;
+			char previousConvertedChar = 0;
+			bool compressDoubleLetter = false;
 			bool startNewWord = true;
 			bool wordInserted = false;
 			unsigned int arrayIndexBase = 0;
@@ -428,10 +423,11 @@ namespace dirsearch {
 
 					startNewWord = true;
 					arrayIndexBase = 0;
-					m_prefixPath.clear();
-					m_suffixPath.clear();
+					m_wholeWord.clear();
 					m_currentWordLength = 0;
 					searchMode = startSearch;
+					previousConvertedChar = 0;
+					compressDoubleLetter = false;
 				}
 				// If this is an alpha value and not traversing oversized word
 				else if (searchMode != traversingOversizedWord) 
@@ -439,6 +435,17 @@ namespace dirsearch {
 					if (DISABLE_CHAR_COMPRESSION)
 					{
 						convertedChar = std::tolower(nextChar, m_toLowerLocale);
+						if (convertedChar == previousConvertedChar)
+						{
+							// I will encode "double letters as their capital equivalent
+							convertedChar = std::toupper(convertedChar, m_toLowerLocale);
+							compressDoubleLetter = true;
+							previousConvertedChar = 0;
+						}
+						else
+						{
+							previousConvertedChar = convertedChar;
+						}
 					}
 					else
 					{
@@ -454,26 +461,21 @@ namespace dirsearch {
 						}
 					}
 
-					if (m_currentWordLength < m_wordMapKeyMaxLength)
-					{
-						searchMode = traversingPrefixArray;
-						m_prefixPath.push_back(convertedChar);
-						// Continue "traversing" the prefix array to find the "leaf node" it represents
-					}
-					else
-					{
-						searchMode = readingSuffix;
-						m_suffixPath.push_back(convertedChar);
-					}
+					searchMode = readingAlphaString;
+					if (compressDoubleLetter)
+						m_wholeWord.pop_back();
+
+					m_wholeWord.push_back(convertedChar);
 				}
 
 				m_currentWordLength++;
+				compressDoubleLetter = false;
 			}
 
 
 
 			// Tidy up the last word (if it ends with a alpha char)
-			if( (searchMode == traversingPrefixArray) || (searchMode == readingSuffix) )
+			if (searchMode == readingAlphaString) 
 			{
 				// Put this in a function and call at end too
 				this->InsertWord();
@@ -485,23 +487,23 @@ namespace dirsearch {
 			for (auto nextWord = m_tempExistingWordMap.begin();
 				nextWord != m_tempExistingWordMap.end(); ++nextWord)
 			{
-				const string& wholeWord = nextWord->first;
+				const string& m_wholeWord = nextWord->first;
 				int fileWordCount = nextWord->second;
 
-				if ( wholeWord.length() <= static_cast<std::size_t>( m_wordMapKeyMaxLength) )
+				if ( m_wholeWord.length() <= static_cast<std::size_t>( m_wordMapKeyMaxLength) )
 				{
 					// if the whole word is small enough to be a key on the map, then
 					// no suffix is required
-					InsertIntoWordMap(wholeWord, nullptr, fileArrayIndex, fileWordCount);
+					InsertIntoWordMap(m_wholeWord, nullptr, fileArrayIndex, fileWordCount);
 				}
 				else
 				{
 					// else the whole word isn't small enough to be a key on the map
-					// so need to store it's prefix on map and its suffix on the list
+					// so need to store it's wholeWord on map and its suffix on the list
 					// of suffixs for that map
-					string prefix = wholeWord.substr(0, m_wordMapKeyMaxLength);
-					string* suffix = new string( wholeWord.substr(m_wordMapKeyMaxLength));
-					InsertIntoWordMap(prefix, suffix->c_str(), fileArrayIndex, fileWordCount);
+					string wholeWord = m_wholeWord.substr(0, m_wordMapKeyMaxLength);
+					string* suffix = new string( m_wholeWord.substr(m_wordMapKeyMaxLength));
+					InsertIntoWordMap(wholeWord, suffix->c_str(), fileArrayIndex, fileWordCount);
 				}
 			}
 			*/
@@ -540,35 +542,48 @@ namespace dirsearch {
 				assert(0);
 			}
 		}
-
-		//delete[] m_suffixPath;
-		//delete[] m_prefixPath;
 	}
 
 
-	void DirSearch::InsertIntoWordMap(const std::string & prefix, const char* const suffix,
+	void DirSearch::InsertIntoWordMap(const std::string & wholeWord, 
 		const short fileArrayIndex, const int fileWordCount)
 	{
-		if (m_wordMap.find(prefix) == m_wordMap.end())
+		if (m_wordMap.find(wholeWord) == m_wordMap.end())
 		{
-			//Suffix* newSuffix = new Suffix(suffix);
-			//newSuffix->InsertSuffix(suffix, new SuffixFileData(fileArrayIndex, fileWordCount));
-			m_wordMap.insert(std::pair<std::string, unsigned int>(prefix, 1 ) );
+			MapData newTemp;
+			newTemp.intVal = 1;
+			newTemp.shortVal = 1;
+			m_wordMap.insert(std::pair<std::string, MapData>(wholeWord, newTemp) );
+			m_wordMapSize++;
 		}
 		else
 		{
-			m_wordMap[prefix]++;
-			/*
-			m_wordMap[prefix]->InsertSuffix(
-				suffix, new SuffixFileData(fileArrayIndex, fileWordCount));
-				*/
+			m_wordMap[wholeWord].intVal++;
+			m_wordMap[wholeWord].shortVal++;
 		}
 	}
 
-	
-	SuffixFileDataListT* DirSearch::SearchWordMap(const std::string& prefix, const std::string& suffix)
+
+
+
+
+
+
+	void DirSearch::CullWordMap()
 	{
-		if (m_wordMap.find(prefix) == m_wordMap.end())
+		// If the map is getting to big, cull until it gets about 10% smaller
+
+	}
+
+
+
+
+
+
+	
+	SuffixFileDataListT* DirSearch::SearchWordMap(const std::string& wholeWord)
+	{
+		if (m_wordMap.find(wholeWord) == m_wordMap.end())
 		{
 			return nullptr;
 		}
@@ -576,7 +591,6 @@ namespace dirsearch {
 		{
 			assert(0);	// This isn't implemented yet
 			return nullptr;
-			//return m_wordMap[prefix]->GetFileData(suffix.c_str() );
 		}
 	}
 
@@ -595,27 +609,29 @@ namespace dirsearch {
 
 		//else if (m_currentWordLength < m_wordMapKeyMaxLength)
 		//{
-			// Only need to insert the "prefix" (i.e. the suffix can be empty)
+			// Only need to insert the "wholeWord" (i.e. the suffix can be empty)
 			// Store a map of currently inserted words and init the bitpattern variables for the new words 
 			// for this file
 			//WordMapT
-
-
-		// TODO (replace with "m_prefixPath" and suffix version with just one string for the whole word
-		const string wholeWord = m_prefixPath + m_suffixPath;
 		
-			
-		if ( m_tempExistingWordMap.find(wholeWord) == m_tempExistingWordMap.end())
+		//if (m_indexConstructionState == WordCounting)
 		{
-			InsertIntoWordMap(wholeWord, nullptr, 0, 1);
-			m_tempExistingWordMap[wholeWord] = true;// m_initPitPatternList; // TODO for when I use bit pattern
+			if (m_tempExistingWordMap.find(m_wholeWord) == m_tempExistingWordMap.end())
+			{
+				InsertIntoWordMap(m_wholeWord, 0, 1);
+				m_tempExistingWordMap[m_wholeWord] = true;// m_initPitPatternList; // TODO for when I use bit pattern
+			}
+			else if (DEBUG_MODE)
+			{
+				InsertIntoWordMap(m_wholeWord, 0, 1);
+			}
 		}
 		//else
 		//{
-		//	m_tempExistingWordMap[wholeWord]++;
+		//	m_tempExistingWordMap[m_wholeWord]++;
 		//}
 
-		//m_currentWordBlock.push_back(wholeWord);
+		//m_currentWordBlock.push_back(m_wholeWord);
 
 		//}
 		//else
@@ -647,18 +663,26 @@ namespace dirsearch {
 	{
 		if (m_putMapWordKeysInIndexFile)
 		{
-			
-
-			for (auto nextWord = m_wordMap.begin();
-				nextWord != m_wordMap.end(); ++nextWord)
+			// Store the words from the map keys
+			if (m_indexConstructionState == CountNumFilesEachWordIsIn)
 			{
-				string nextString = (*nextWord).first.c_str();
-				m_indexFile.write(nextString.c_str(), nextString.size() );
-				long pos = m_indexFile.tellp();
-				pos += (SIZE_OF_UNSIGNED_SHORT + SIZE_OF_UNSIGNED_INT);
-				m_indexFile.seekp(pos);
+				for (auto nextWord = m_wordMap.begin();
+					nextWord != m_wordMap.end(); ++nextWord)
+				{
+					string nextString = (*nextWord).first.c_str();
+					m_indexFile.write(nextString.c_str(), nextString.size());
+					long pos = m_indexFile.tellp();
+					pos += (SIZE_OF_UNSIGNED_SHORT + SIZE_OF_UNSIGNED_INT);
+					m_indexFile.seekp(pos);
+				}
+			}
+			else
+			{
+				// Put in the count of each word for each file in respective place
 			}
 		}
+
+		// Store the file data for each word
 
 
 	}

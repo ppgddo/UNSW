@@ -85,6 +85,8 @@ namespace dirsearch
 	};
 
 
+
+
 	class Suffix
 	{
 	public:
@@ -201,6 +203,25 @@ namespace dirsearch
 	};
 
 
+
+
+
+
+	struct MapData
+	{
+		unsigned int intVal;
+		unsigned short shortVal;
+	};
+
+
+	enum IndexConstructionState
+	{
+		CountNumFilesEachWordIsIn,
+		WordCounting
+	};
+
+
+
 	class DirSearch
 	{
 	public:
@@ -210,7 +231,8 @@ namespace dirsearch
 
 		//typedef unsigned char SuffixArrayT[PREFIX_ARRAY_DIM*m_wordMapKeyMaxLength];
 		//typedef std::unordered_map<std::string, Suffix* > WordMapT;
-		typedef std::unordered_map<std::string, unsigned int > WordDataMapT;
+		//typedef std::unordered_map<std::string, unsigned int > WordDataMapT;
+		typedef std::unordered_map<std::string, MapData> WordDataMapT;
 		//typedef std::unordered_map<std::string, std::list<char> > ExistingWordMapT;	// for "bit pattern" impl
 		typedef std::unordered_map<std::string, bool > ExistingWordMapT;
 		typedef char* FilenameArrayT[2000];
@@ -230,18 +252,20 @@ namespace dirsearch
 
 		SuffixFileDataListT* SearchAllFiles(const std::string& searchTerm);
 
-		void InsertIntoWordMap(const std::string & prefix, const char* const suffix, const short fileArrayIndex, const int fileWordCount);
-		SuffixFileDataListT* SearchWordMap(const std::string & prefix, const std::string & suffix);
+		void InsertIntoWordMap(const std::string & prefix, const short fileArrayIndex, const int fileWordCount);
+		SuffixFileDataListT* SearchWordMap(const std::string & prefix);
 
 		std::vector<std::string> ConvertString(const std::vector<std::string>& searchStrings);
 
 		void ConstructIndexFile();
+		void CullWordMap()
 
 	private:
 		// Private data members
 		std::fstream m_indexFile;
 		WordDataMapT m_wordMap;
-		int m_indexFileSize;
+		unsigned int m_wordMapSize = 0;
+		unsigned int m_indexFileSize;
 		bool m_useIndexFile = false;
 		bool m_createIndexFile = false;
 		const unsigned int m_indexPercentage = 20;
@@ -250,18 +274,18 @@ namespace dirsearch
 		unsigned int m_maxFileSize = 0;
 		char* m_readBuffer = nullptr;
 		unsigned int m_readBufferSize = 1000000;	// 256 * 256;	// TODO will need to increase this!
-		char m_wordMapKeyMaxLength = MAX_SEARCH_WORD_SIZE - 1;			// This is the default unless the m_useIndexFile is set
+		//unsigned char m_wordMapKeyMaxLength = MAX_SEARCH_WORD_SIZE - 1;			// This is the default unless the m_useIndexFile is set
 		//int m_maxExpectedWordSize = 256;	// This will increase if a larger word is discovered
 		bool m_putMapWordKeysInIndexFile = true;
+		IndexConstructionState m_indexConstructionState = CountNumFilesEachWordIsIn;
 		
 		// Used by the CreateIndexForFile() and InsertWord() functions
 		ExistingWordMapT m_tempExistingWordMap;
-		std::string m_prefixPath;
-		std::string m_suffixPath;
+		std::string m_wholeWord;
 		std::locale m_toLowerLocale;
-		int m_currentWordLength;
-		int m_fileWordCount;
-		int m_wordBlockSize = 256;
+		unsigned int m_currentWordLength;
+		unsigned int m_fileWordCount;
+		unsigned int m_wordBlockSize = 256;
 		std::list<std::string> m_currentWordBlock;
 		std::list<char> m_initPitPatternList;
 	};
