@@ -207,6 +207,17 @@ namespace dirsearch
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 	struct MapData
 	{
 		unsigned int intVal;
@@ -234,7 +245,7 @@ namespace dirsearch
 		//typedef std::unordered_map<std::string, unsigned int > WordDataMapT;
 		typedef std::unordered_map<std::string, MapData> WordDataMapT;
 		//typedef std::unordered_map<std::string, std::list<char> > ExistingWordMapT;	// for "bit pattern" impl
-		typedef std::unordered_map<std::string, bool > ExistingWordMapT;
+		typedef std::unordered_map<std::string, unsigned int > ExistingWordMapT;
 		typedef char* FilenameArrayT[2000];
 
 		DirSearch(const std::string indexFilename, const unsigned int indexPercentage);
@@ -251,19 +262,22 @@ namespace dirsearch
 		void CreateIndexForFile(const char* const fileName, short fileArrayIndex);
 
 		SuffixFileDataListT* SearchAllFiles(const std::string& searchTerm);
+		void ReadAllFiles();
 
 		void InsertIntoWordMap(const std::string & prefix, const short fileArrayIndex, const int fileWordCount);
 		SuffixFileDataListT* SearchWordMap(const std::string & prefix);
 
 		std::vector<std::string> ConvertString(const std::vector<std::string>& searchStrings);
 
-		void ConstructIndexFile();
+		void ConstructIndexFile(const unsigned short fileArrayIndex);
 		void CullWordMap();
 
 	private:
 		// Private data members
 		std::fstream m_indexFile;
+		unsigned int m_indexFilePosition;
 		WordDataMapT m_wordMap;
+		ExistingWordMapT m_tempExistingWordMap;
 		unsigned int m_wordMapSize = 0;
 		unsigned int m_indexFileSize;
 		bool m_useIndexFile = false;
@@ -277,10 +291,9 @@ namespace dirsearch
 		//unsigned char m_wordMapKeyMaxLength = MAX_SEARCH_WORD_SIZE - 1;			// This is the default unless the m_useIndexFile is set
 		//int m_maxExpectedWordSize = 256;	// This will increase if a larger word is discovered
 		bool m_putMapWordKeysInIndexFile = true;
-		IndexConstructionState m_indexConstructionState = CountNumFilesEachWordIsIn;
+		IndexConstructionState m_indexConstructionState;
 		
 		// Used by the CreateIndexForFile() and InsertWord() functions
-		ExistingWordMapT m_tempExistingWordMap;
 		std::string m_wholeWord;
 		std::locale m_toLowerLocale;
 		unsigned int m_currentWordLength;

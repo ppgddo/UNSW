@@ -19,7 +19,7 @@
 #include "HelperFunctions.h"
 
 
-static const bool DEBUG_MODE = false;
+static const bool DEBUG_MODE = true;
 static const bool ENABLE_ERROR_MSG = true;
 static const bool DISABLE_CHAR_COMPRESSION = true;	// Disablabe this is if you want to use the 0-26 char range
 
@@ -91,24 +91,19 @@ namespace dirsearch {
 
 
 	DirSearch::DirSearch(const std::string indexFilename, const unsigned int indexPercentage
-			 )
+		)
 		: m_indexFilename(indexFilename)
 		, m_indexPercentage(indexPercentage)
 		, m_dirsearchDataSize(-1)	// TODO where should this be cacluated?
 	{
 		m_readBuffer = new char[m_readBufferSize + 1];
-		
+
 		if (DEBUG_MODE)
 			cout << "File lenght = " << m_dirsearchDataSize << endl;
 
-		if (m_dirsearchDataSize	>= 0)	//> 60000000) // If more than 60MB, store everthing in the index file
+		if (m_dirsearchDataSize >= 0)	//> 60000000) // If more than 60MB, store everthing in the index file
 		{
 			// For now I will use index file every time
-			m_useIndexFile = true;
-		}
-		else if(DEBUG_MODE && (m_dirsearchDataSize > 2) )
-		{
-			// TODO remove this debug code
 			m_useIndexFile = true;
 		}
 
@@ -120,11 +115,11 @@ namespace dirsearch {
 			m_indexFileSize = static_cast<unsigned int>(m_indexFile.tellg());
 			m_indexFile.seekg(0, ios::beg);
 
-			if (m_indexFile.good() && (m_indexFileSize > 0))
+			if (!DEBUG_MODE && m_indexFile.good() && (m_indexFileSize > 0) ) 
 			{
 				// If the file already exists, then we can assume it's the correct one and use it
 				// This is one of the contraints we were given
-				assert(m_indexFileSize <= indexPercentage*m_dirsearchDataSize); 
+				assert(m_indexFileSize <= indexPercentage*m_dirsearchDataSize);
 			}
 			else
 			{
@@ -133,6 +128,7 @@ namespace dirsearch {
 				m_indexFileSize = 0;
 				m_createIndexFile = true;
 				m_indexFile.open(m_indexFilename, ios::out | ios::binary);
+				m_indexFile.seekp(0);
 			}
 		}
 		else
@@ -140,6 +136,25 @@ namespace dirsearch {
 			//m_prefixArray = new char[PREFIX_ARRAY_DIM * m_wordMapKeyMaxLength];
 		}
 
+		if (m_createIndexFile)
+		{
+			// Read files for the first pass
+			m_indexConstructionState = CountNumFilesEachWordIsIn;
+			this->ReadAllFiles();
+			this->ConstructIndexFile(0);
+			
+			// Change the state and then Read files for the second pass to fill
+			// in the remaining data.
+			m_indexConstructionState = WordCounting;
+			// Note that the "ReadAllFiles" function will call the "ConstructIndexFile"
+			// for each file it reads to write all of the corresponding "file data".
+			this->ReadAllFiles();
+		}
+
+	}
+
+	void DirSearch::ReadAllFiles()
+	{
 
 
 #ifndef  _WIN32
@@ -195,11 +210,6 @@ namespace dirsearch {
 			this->CreateIndexForFile((*fileName).c_str(), fileArrayIndex++);
 		}
 
-
-
-
-
-
 #else
 
 		// TODO read every file in the target directory!!!
@@ -217,11 +227,7 @@ namespace dirsearch {
 
 #endif // ! _WIN32
 
-		if (m_createIndexFile)
-		{
-			this->ConstructIndexFile();
-			m_indexConstructionState = WordCounting;
-		}
+
 	}
 
 
@@ -229,8 +235,44 @@ namespace dirsearch {
 	{
 		if (DEBUG_MODE)
 		{
-			cout << "Searching for terms..." << endl << endl;
+			cout << "Searching for terms..." << endl <<
+				"TODO: need to check for spaces in the searchStrings for phrase search" 
+				<< endl << endl;
 		}
+
+		if (m_createIndexFile)
+		{
+			// Only need to load the index file if it wasn't just created
+			// by this instance of the app
+			bool readAllKeyValues = false;
+			while (!readAllKeyValues)
+			{
+				// Note, if I find a word that is a "substring" of another word,
+				// then I know I'm doing the "substring" search
+
+				cout << "TODO: Read the index file in smaller blocks!" << endl;
+
+			}
+
+		}
+
+
+
+		// Search stage 1: 
+		// If no spaces in the search term, search for key words
+		// as "complete" keys of the "m_wordMap"
+
+		// If there is a space in a search term, search for "phrases"
+		// as "complete" keys, then search the common file (i.e. the 
+		// files that have all words of phrase) and search for the phrase
+
+		// Search stage 2 (substring search): 
+		// If one of the search terms from step 1 don't produce any results
+		// then repeat it but seach every word in the "m_wordMap" and then
+		// search each word that it is a substring of
+
+		// Search stage 3 
+		// If still no results, then search in every input file
 
 		SuffixFileDataListT* listOfTermFileData = nullptr;
 
@@ -482,7 +524,21 @@ namespace dirsearch {
 			}
 
 
-			// Now transfer the "m_tempExistingWordMap" onto the "m_wordMap"
+			if (m_indexConstructionState == CountNumFilesEachWordIsIn)
+			{
+				for (auto thisWord = m_tempExistingWordMap.begin();
+				thisWord != m_tempExistingWordMap.end(); ++thisWord)
+				{
+					const string& word = (*thisWord).first;
+					m_wordMap[word].shortVal++;
+				}
+			}
+			else  // i.e. (m_indexConstructionState == WordCounting)
+			{
+				// Now transfer the "m_tempExistingWordMap" onto the "m_wordMap"
+				ConstructIndexFile(fileArrayIndex);
+			}
+
 			/*
 			for (auto nextWord = m_tempExistingWordMap.begin();
 				nextWord != m_tempExistingWordMap.end(); ++nextWord)
@@ -514,17 +570,6 @@ namespace dirsearch {
 
 
 
-
-
-			// Step 1: Construct all the "leaf" nodes first
-
-
-
-
-
-			// Step 2: After complete "tree" (represented as an array) is constructed, then go through and
-			// sort each "suffix" in the leaves lexigraphically, one leaf at a time stored in memory using STL.
-			// Also store the "size" (number of suffixes) in each leaf
 		}
 		catch ( std::exception e)
 		{
@@ -552,14 +597,18 @@ namespace dirsearch {
 		{
 			MapData newTemp;
 			newTemp.intVal = 1;
-			newTemp.shortVal = 1;
+			newTemp.shortVal = 0;
 			m_wordMap.insert(std::pair<std::string, MapData>(wholeWord, newTemp) );
-			m_wordMapSize++;
+
+			// Do prevent "double counting", only count the number of words
+			// in map on first pass
+			if (m_indexConstructionState == CountNumFilesEachWordIsIn)
+				m_wordMapSize++;
 		}
 		else
 		{
 			m_wordMap[wholeWord].intVal++;
-			m_wordMap[wholeWord].shortVal++;
+			//m_wordMap[wholeWord].shortVal++;
 		}
 	}
 
@@ -617,44 +666,25 @@ namespace dirsearch {
 			// for this file
 			//WordMapT
 		
-		//if (m_indexConstructionState == WordCounting)
+		// First pass is simply counting how many files each word is in
+		if (m_indexConstructionState == CountNumFilesEachWordIsIn)
 		{
 			if (m_tempExistingWordMap.find(m_wholeWord) == m_tempExistingWordMap.end())
 			{
 				InsertIntoWordMap(m_wholeWord, 0, 1);
 				m_tempExistingWordMap[m_wholeWord] = true;// m_initPitPatternList; // TODO for when I use bit pattern
 			}
-			else if (DEBUG_MODE)
-			{
-				InsertIntoWordMap(m_wholeWord, 0, 1);
-			}
+			//else if (DEBUG_MODE)
+			//{
+			//	InsertIntoWordMap(m_wholeWord, 0, 1);
+			//}
 		}
-		//else
-		//{
-		//	m_tempExistingWordMap[m_wholeWord]++;
-		//}
+		// Then second pass is counting how many time a given word appears in a given file
+		else
+		{
+			m_tempExistingWordMap[m_wholeWord]++;
+		}
 
-		//m_currentWordBlock.push_back(m_wholeWord);
-
-		//}
-		//else
-		//{
-		//	// Need to include the suffix as well
-		//}
-
-		// TODO this is how I would set the "bit patterns" for when I implement "Phrase search"
-		//if (++m_fileWordCount > m_wordBlockSize)
-		//{
-		//	int tempWordCount = 0;
-		//	// Once the current block has reached it's limit go through the list of 
-		//	// words set their "bit patterns"
-		//	for ( auto existingSuffixes = m_currentWordBlock.begin();
-		//		existingSuffixes != m_currentWordBlock.end(); ++existingSuffixes)
-		//	{
-		//		// TODO For now don't worry about the order, just make sure the correct
-		//		// number of bits are set
-		//	}
-		//}
 	}
 
 
@@ -662,31 +692,92 @@ namespace dirsearch {
 
 
 
-	void DirSearch::ConstructIndexFile()
+	void DirSearch::ConstructIndexFile(const unsigned short fileArrayIndex)
 	{
 		if (m_putMapWordKeysInIndexFile)
 		{
-			// Store the words from the map keys
+			// Store the words from the map keys with "place holder" spaces
+			// for the indexs, which will be put in on the second pass
 			if (m_indexConstructionState == CountNumFilesEachWordIsIn)
 			{
-				for (auto nextWord = m_wordMap.begin();
-					nextWord != m_wordMap.end(); ++nextWord)
+				for (auto thisWord = m_wordMap.begin();
+				thisWord != m_wordMap.end(); ++thisWord)
 				{
-					string nextString = (*nextWord).first.c_str();
-					m_indexFile.write(nextString.c_str(), nextString.size());
-					long pos = m_indexFile.tellp();
-					pos += (SIZE_OF_UNSIGNED_SHORT + SIZE_OF_UNSIGNED_INT);
-					m_indexFile.seekp(pos);
+					string word = (*thisWord).first;
+					word.append(",");	// Append a comma for the word delimiter
+					m_indexFile.write(word.c_str(), word.size());
+					m_indexFilePosition = static_cast<unsigned int>(m_indexFile.tellp());
+					(*thisWord).second.intVal = m_indexFilePosition;
+					m_indexFilePosition += (SIZE_OF_UNSIGNED_SHORT + SIZE_OF_UNSIGNED_INT);
+					m_indexFile.seekp(m_indexFilePosition);
+				}
+
+				// Use a different delimiter to indicate the end of the list of "word" map keys
+				string word = "#";
+				m_indexFile.write(word.c_str(), word.size());
+				m_indexFilePosition = static_cast<unsigned int>(m_indexFile.tellp());
+
+				// The "file data" postion for the first word will be 
+				// the final m_indexFilePosition position after writing all of the map keys.
+				unsigned int indexForNextWord = static_cast<unsigned int>
+					(m_indexFilePosition);
+
+				// Put in the count of each word for each file in respective place
+				for (auto thisWord = m_wordMap.begin();
+				thisWord != m_wordMap.end(); ++thisWord)
+				{
+					unsigned int& thisWordIntVal = (*thisWord).second.intVal;
+
+					// First write the "position or file data" value for this map key string
+					// in the index file
+					const char*const writeBuffer = reinterpret_cast<const char*const>(&indexForNextWord);
+					m_indexFile.seekp(thisWordIntVal);
+					m_indexFile.write(writeBuffer, sizeof(unsigned int));
+
+					unsigned short numberOfFilesThisWordIsIn = (*thisWord).second.shortVal;
+					thisWordIntVal = indexForNextWord;
+
+					indexForNextWord += numberOfFilesThisWordIsIn *
+						static_cast<unsigned int>(sizeof(unsigned int) + sizeof(unsigned short));
+
+					// The "shortVal" will now be used to indicate the end of the "file data" for
+					// this word, which starts at 0 (it's a relative value) and get incremented
+					// as the data gets inserted in the next pass (i.e. in the "WordCounting" state)
+					(*thisWord).second.shortVal = 0;
 				}
 			}
 			else
 			{
-				// Put in the count of each word for each file in respective place
+				// Iterate through the "m_tempExistingWordMap" and Put in the count of 
+				// each word for each file in respective place for that file index
+				for (auto thisWord = m_tempExistingWordMap.begin();
+				thisWord != m_tempExistingWordMap.end(); ++thisWord)
+				{
+					// Extract the data onstructed in this function in the first pass 
+					// (i.e. in the "CountNumFilesEachWordIsIn" state)
+					const string& word = (*thisWord).first;
+					const unsigned int thisWordFileDataPosition = m_wordMap[word].intVal;
+					unsigned short& offset = m_wordMap[word].shortVal;
+					unsigned int writePosition = thisWordFileDataPosition + offset;
+					// Get the word count value for this word for this file
+					const unsigned int fileWordCount = (*thisWord).second;
+
+					// Then write the index number for this file ( range = 0-2000)
+					const char*const writeFileIndexBuffer = reinterpret_cast<const char*const>(&fileWordCount);
+					m_indexFile.seekp(writePosition);
+					m_indexFile.write(writeFileIndexBuffer, sizeof(unsigned short));
+
+					// Then write the word count
+					writePosition += sizeof(unsigned short);
+					const char*const writeCountBuffer = reinterpret_cast<const char*const>(&fileWordCount);
+					m_indexFile.seekp(writePosition);
+					m_indexFile.write(writeCountBuffer, sizeof(unsigned int));
+
+					// Update the location of the "offset value"
+					offset = sizeof(unsigned short) + sizeof(unsigned int);
+				}
 			}
 		}
-
-		// Store the file data for each word
-
 
 	}
 
