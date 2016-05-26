@@ -300,7 +300,6 @@ namespace dirsearch
 		unsigned int m_fileWordCount;
 		unsigned int m_wordBlockSize = 256;
 		std::list<std::string> m_currentWordBlock;
-		std::list<char> m_initPitPatternList;
 	};
 
 }

@@ -21,7 +21,7 @@
 
 static const bool DEBUG_MODE = true;
 static const bool ENABLE_ERROR_MSG = true;
-static const bool DISABLE_CHAR_COMPRESSION = true;	// Disablabe this is if you want to use the 0-26 char range
+static const bool DISPLAY_TODO = true;
 
 static const unsigned int SIZE_OF_UNSIGNED_SHORT = sizeof(unsigned short);
 static const unsigned int SIZE_OF_UNSIGNED_INT = sizeof(unsigned int);
@@ -49,19 +49,7 @@ namespace dirsearch {
 			{
 				if (isalpha(*nextChar))
 				{
-					if (DISABLE_CHAR_COMPRESSION)
-					{
-						newWord.push_back( std::tolower(*nextChar, m_toLowerLocale) );
-					}
-					else if (*nextChar < 'Z')
-					{
-						// If captical letter
-						newWord.push_back((*nextChar) - 'A');
-					}
-					else
-					{
-						newWord.push_back((*nextChar) - 'a');
-					}
+					newWord.push_back( std::tolower(*nextChar, m_toLowerLocale) );
 				}
 				else
 				{
@@ -82,11 +70,12 @@ namespace dirsearch {
 		delete[] m_readBuffer;
 		//delete[] m_prefixArray;
 
-		if (DEBUG_MODE)
+		if (DISPLAY_TODO)
+		{
 			cout << "TODO: Delete the pointers in the m_wordMap!!!" << endl;
-
-		cout << "TODO: For the search terms replace double letters with capitals to be consistant!!!!!!!" << endl;
-		cout << "Map size = " << m_wordMapSize << endl;
+			cout << "TODO: For the search terms replace double letters with capitals to be consistant!!!!!!!" << endl;
+			cout << "Map size = " << m_wordMapSize << endl;
+		}
 	}
 
 
@@ -96,7 +85,7 @@ namespace dirsearch {
 		, m_indexPercentage(indexPercentage)
 		, m_dirsearchDataSize(-1)	// TODO where should this be cacluated?
 	{
-		m_readBuffer = new char[m_readBufferSize + 1];
+		//m_readBuffer = new char[m_readBufferSize + 1];
 
 		if (DEBUG_MODE)
 			cout << "File lenght = " << m_dirsearchDataSize << endl;
@@ -220,7 +209,7 @@ namespace dirsearch {
 			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1/06_1243.xml";
 			"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/README.txt";
 		short fileArrayIndex = 0;
-		if (DEBUG_MODE)
+		if (DISPLAY_TODO)
 			cout << "TODO: remove hard-coded file for creating index" << fileName << endl;
 
 		this->CreateIndexForFile(fileName, fileArrayIndex);
@@ -233,11 +222,15 @@ namespace dirsearch {
 
 	void DirSearch::Search(const std::vector<std::string>& searchStrings )
 	{
+		if (DISPLAY_TODO)
+		{
+			cout << "TODO: need to check for spaces in the searchStrings for phrase search" << endl;
+			cout << "TODO: Read the index file in smaller blocks!" << endl;
+		}
+
 		if (DEBUG_MODE)
 		{
-			cout << "Searching for terms..." << endl <<
-				"TODO: need to check for spaces in the searchStrings for phrase search" 
-				<< endl << endl;
+			cout << "Searching for terms..." << endl << endl;
 		}
 
 		if (m_createIndexFile)
@@ -250,7 +243,6 @@ namespace dirsearch {
 				// Note, if I find a word that is a "substring" of another word,
 				// then I know I'm doing the "substring" search
 
-				cout << "TODO: Read the index file in smaller blocks!" << endl;
 
 			}
 
@@ -347,7 +339,6 @@ namespace dirsearch {
 
 	void DirSearch::CreateIndexForFile(const char* const fileName, short fileArrayIndex)
 	{
-
 		try
 		{
 			std::ifstream inputFile(fileName);
@@ -355,30 +346,6 @@ namespace dirsearch {
 			unsigned int fileSize = static_cast<unsigned int>(inputFile.tellg());
 			inputFile.seekg(0, ios::beg);
 			m_fileWordCount = 0;
-			
-			
-			
-
-
-
-
-
-
-			// TODO Need to varry this based on size!
-			char minNumOfPatterBitsRequired = 2;
-			m_initPitPatternList.clear();
-			for (char i = 0; i < minNumOfPatterBitsRequired; i++)
-			{
-				m_initPitPatternList.push_back(0);
-			}
-
-
-
-
-
-
-
-
 
 
 			if (fileSize > m_maxFileSize)
@@ -394,33 +361,12 @@ namespace dirsearch {
 				m_readBufferSize = fileSize;
 				m_readBuffer = new char[m_readBufferSize + 1];
 			}
-
-			// Based on what Raymond says in this thread:
-			// http://webapps.cse.unsw.edu.au/webcms2/messageboard/viewmessage.php?cid=2440&topicid=6272&threadid=11104
-			// I need to read the file in smaller blocks, because a file could be up to 10MB (although not likely)
-			if (DEBUG_MODE)
+			else if (m_readBuffer == nullptr)
 			{
-				static bool oneShotFlag = false;
-				if (!oneShotFlag)
-				{
-					cout << "TODO: Read buffer files in smaller blocks!!!" << endl;
-					oneShotFlag = true;
-				}
+				m_readBuffer = new char[m_readBufferSize + 1];
 			}
+
 			
-			inputFile.read(m_readBuffer, fileSize);
-
-			if (!inputFile )
-			{
-				if (DEBUG_MODE || ENABLE_ERROR_MSG)
-					cerr << "Could not open input file: " << fileName << endl;
-				return;
-			}
-			else if (DEBUG_MODE)
-			{
-				cout << "Successfully Opened file: " << fileName << ", of size: "
-					 << fileSize << endl;
-			}
 			// Get all of the "tokens"
 			/*
 			char* token = strtok(m_readBuffer, " ");
@@ -441,6 +387,39 @@ namespace dirsearch {
 			unsigned int arrayIndexBase = 0;
 			SearchState searchMode = startSearch;
 			m_tempExistingWordMap.clear();
+
+
+
+			// TODO to read in smaller chunks, I just need to put the code below
+			// in a for loop for each chunck, so I won't need to change the logic
+			// (i.e. the code below won't notice the difference).
+			inputFile.read(m_readBuffer, fileSize);
+
+
+
+			if (DISPLAY_TODO)
+			{
+				static bool oneShotFlag = false;
+				if (!oneShotFlag)
+				{
+					cout << "TODO: Read buffer files in smaller blocks!!!" << endl;
+					oneShotFlag = true;
+				}
+			}
+
+			if (!inputFile)
+			{
+				if (DEBUG_MODE || ENABLE_ERROR_MSG)
+					cerr << "Could not open input file: " << fileName << endl;
+				return;
+			}
+			else if (DEBUG_MODE)
+			{
+				cout << "Successfully Opened file: " << fileName << ", of size: "
+					<< fileSize << endl;
+			}
+
+
 
 			for (unsigned int i = 0; i < fileSize; i++)
 			{
@@ -474,8 +453,6 @@ namespace dirsearch {
 				// If this is an alpha value and not traversing oversized word
 				else if (searchMode != traversingOversizedWord) 
 				{
-					if (DISABLE_CHAR_COMPRESSION)
-					{
 						convertedChar = std::tolower(nextChar, m_toLowerLocale);
 						if (convertedChar == previousConvertedChar)
 						{
@@ -488,20 +465,6 @@ namespace dirsearch {
 						{
 							previousConvertedChar = convertedChar;
 						}
-					}
-					else
-					{
-						// convert char to case insensitive offset value relative to 0 (i.e. value [0-25])
-						if (nextChar < 'Z')
-						{
-							// If captical letter
-							convertedChar = nextChar - 'A';
-						}
-						else
-						{
-							convertedChar = nextChar - 'a';
-						}
-					}
 
 					searchMode = readingAlphaString;
 					if (compressDoubleLetter)
@@ -516,13 +479,22 @@ namespace dirsearch {
 
 
 
+
+
+
+
+			// IMPORTANT!!!!
+			// When I implement the "block reading" mode, the code below should be 
+			// executed after all blocks from the file is read!
+
+
+
 			// Tidy up the last word (if it ends with a alpha char)
 			if (searchMode == readingAlphaString) 
 			{
 				// Put this in a function and call at end too
 				this->InsertWord();
 			}
-
 
 			if (m_indexConstructionState == CountNumFilesEachWordIsIn)
 			{
@@ -538,38 +510,6 @@ namespace dirsearch {
 				// Now transfer the "m_tempExistingWordMap" onto the "m_wordMap"
 				ConstructIndexFile(fileArrayIndex);
 			}
-
-			/*
-			for (auto nextWord = m_tempExistingWordMap.begin();
-				nextWord != m_tempExistingWordMap.end(); ++nextWord)
-			{
-				const string& m_wholeWord = nextWord->first;
-				int fileWordCount = nextWord->second;
-
-				if ( m_wholeWord.length() <= static_cast<std::size_t>( m_wordMapKeyMaxLength) )
-				{
-					// if the whole word is small enough to be a key on the map, then
-					// no suffix is required
-					InsertIntoWordMap(m_wholeWord, nullptr, fileArrayIndex, fileWordCount);
-				}
-				else
-				{
-					// else the whole word isn't small enough to be a key on the map
-					// so need to store it's wholeWord on map and its suffix on the list
-					// of suffixs for that map
-					string wholeWord = m_wholeWord.substr(0, m_wordMapKeyMaxLength);
-					string* suffix = new string( m_wholeWord.substr(m_wordMapKeyMaxLength));
-					InsertIntoWordMap(wholeWord, suffix->c_str(), fileArrayIndex, fileWordCount);
-				}
-			}
-			*/
-
-
-
-
-
-
-
 		}
 		catch ( std::exception e)
 		{
@@ -700,11 +640,15 @@ namespace dirsearch {
 			// for the indexs, which will be put in on the second pass
 			if (m_indexConstructionState == CountNumFilesEachWordIsIn)
 			{
+				// TODO write th
+				if (DISPLAY_TODO)
+					cout << "TODO: write buffer in much larger chuncks!" << endl;
+
 				for (auto thisWord = m_wordMap.begin();
 				thisWord != m_wordMap.end(); ++thisWord)
 				{
 					string word = (*thisWord).first;
-					word.append(",");	// Append a comma for the word delimiter
+					word.push_back('\0');	// Append a comma for the word delimiter
 					m_indexFile.write(word.c_str(), word.size());
 					m_indexFilePosition = static_cast<unsigned int>(m_indexFile.tellp());
 					(*thisWord).second.intVal = m_indexFilePosition;
