@@ -271,6 +271,7 @@ namespace dirsearch
 
 		void ConstructIndexFile(const unsigned short fileArrayIndex);
 		void CullWordMap();
+		bool GetNextMapStringFromIndexFile(const char* & tempPointer);
 
 	private:
 		// Private data members
@@ -292,6 +293,7 @@ namespace dirsearch
 		//int m_maxExpectedWordSize = 256;	// This will increase if a larger word is discovered
 		bool m_putMapWordKeysInIndexFile = true;
 		IndexConstructionState m_indexConstructionState;
+		std::string m_nextMapStringFromIndexFile;
 		
 		// Used by the CreateIndexForFile() and InsertWord() functions
 		std::string m_wholeWord;
