@@ -9,9 +9,9 @@
 
 namespace dirsearch 
 {
-	struct SuffixFileData
+	struct WordFileData
 	{
-		SuffixFileData( short fileIndex, unsigned int wordCount ) // std::list<char> & bitPatterns)
+		WordFileData( short fileIndex, unsigned int wordCount ) // std::list<char> & bitPatterns)
 			: m_fileIndex(fileIndex)
 			, m_wordCount(wordCount)
 			//, m_bitPatterns(bitPatterns)
@@ -22,186 +22,183 @@ namespace dirsearch
 		//std::list<char> m_bitPatterns;	// TODO use this instead when I implement "Phrase search"
 
 	private:
-		SuffixFileData(const SuffixFileData&) = delete;
-		SuffixFileData& operator=(const SuffixFileData&);
+		WordFileData(const WordFileData&) = delete;
+		WordFileData& operator=(const WordFileData&);
 	};
 
 
-	typedef std::list<SuffixFileData * > SuffixFileDataListT;
+	//typedef std::list<WordFileData * > WordFileDataListT;
+
+	//struct WordData
+	//{
+	//public:
+	//	WordData(const char* const wordString)
+	//		: m_wordString(wordString)
+	//	{
+	//		//m_wordFileData = new WordFileDataListT;
+	//	}
+
+
+	//	~WordData()
+	//	{
+	//		// TODO delete the pointers on the m_wordFileData as well!
+	//		//delete m_wordFileData;
+	//	}
+
+	//	void InsertFileData(WordFileData* wordFileData)
+	//	{
+	//		// Update the file data
+	//		//m_wordFileData->push_back(wordFileData);
+	//	}
+
+
+	//	WordFileDataListT * GetFileData()
+	//	{
+	//		return nullptr;
+	//		//return m_wordFileData;
+	//	}
+
+
+	//	const char* const  m_wordString;
+	//	// Put all data for each "word" for a given "prefix" 
+	//	// i.e. search word = preffix (key of WordMap) + word
+	//	//WordFileDataListT * m_wordFileData;
+
+	//	/*
+	//	Word(Word&& other) : m_singleWord(nullptr), m_wordList(nullptr)
+	//	{
+	//		// pilfer other’s resource
+	//		m_singleWord = other.m_singleWord;
+	//		m_wordList = other.m_wordList;
+	//		// reset other
+	//		other.m_singleWord = nullptr;
+	//		other.m_wordList = nullptr;
+	//	}
+	//	*/
+
+
+	//private:
+	//	WordData(const WordData&) = delete;
+	//	WordData& operator=(const WordData&);
+	//};
 
 
 
-	struct SuffixData
-	{
-	public:
-		SuffixData(const char* const suffixString)
-			: m_suffixString(suffixString)
-		{
-			//m_suffixFileData = new SuffixFileDataListT;
-		}
+	
+	//class Word
+	//{
+	//public:
+	//	//typedef std::list<WordData*> WordListT;
+
+	//	Word()/*(const char* const wordString)
+	//		: m_singleWord(new WordData(wordString))*/
+	//	{}
+
+	//	~Word()
+	//	{
+	//		// TODO delete the pointers on the m_wordList list too!
+	//		delete m_singleWord;
+	//		delete m_wordList;
+	//	}
+
+	//	bool HasOnlyOneWord()
+	//	{
+	//		return (m_wordList == nullptr);
+	//	}
 
 
-		~SuffixData()
-		{
-			// TODO delete the pointers on the m_suffixFileData as well!
-			//delete m_suffixFileData;
-		}
+	//	WordFileDataListT* GetFileData(const char* const wordString)
+	//	{
+	//		if ((m_wordList != nullptr))
+	//		{
+	//			for (auto existingWordes = m_wordList->begin();
+	//				existingWordes != m_wordList->end(); ++existingWordes)
+	//			{
+	//				if (std::string(wordString) == std::string((*existingWordes)->m_wordString) )
+	//				{
+	//					return (*existingWordes)->GetFileData();
+	//				}
+	//			}
 
-		void InsertFileData(SuffixFileData* suffixFileData)
-		{
-			// Update the file data
-			//m_suffixFileData->push_back(suffixFileData);
-		}
-
-
-		SuffixFileDataListT * GetFileData()
-		{
-			return nullptr;
-			//return m_suffixFileData;
-		}
-
-
-		const char* const  m_suffixString;
-		// Put all data for each "suffix" for a given "prefix" 
-		// i.e. search word = preffix (key of WordMap) + suffix
-		//SuffixFileDataListT * m_suffixFileData;
-
-		/*
-		Suffix(Suffix&& other) : m_singleSuffix(nullptr), m_suffixList(nullptr)
-		{
-			// pilfer other’s resource
-			m_singleSuffix = other.m_singleSuffix;
-			m_suffixList = other.m_suffixList;
-			// reset other
-			other.m_singleSuffix = nullptr;
-			other.m_suffixList = nullptr;
-		}
-		*/
+	//			return nullptr;
+	//		}
+	//		else
+	//		{
+	//			// Just return the m_singleWord data
+	//			assert(m_singleWord != nullptr);
+	//			if ( (m_singleWord != nullptr) && 
+	//				std::string(m_singleWord->m_wordString) != std::string(wordString) )
+	//			{
+	//				return m_singleWord->GetFileData();
+	//			}
+	//			else
+	//			{
+	//				return nullptr;
+	//			}
+	//		}
+	//	}
 
 
-	private:
-		SuffixData(const SuffixData&) = delete;
-		SuffixData& operator=(const SuffixData&);
-	};
+	//	void InsertWord(const char* const word, WordFileData* wordFileData)
+	//	{
+	//		if ((m_wordList != nullptr))
+	//		{
+	//			for (auto existingWordes = m_wordList->begin();
+	//			existingWordes != m_wordList->end(); ++existingWordes)
+	//			{
+	//				if ((*existingWordes)->m_wordString == word)
+	//				{
+	//					(*existingWordes)->InsertFileData(wordFileData);
+	//					return;
+	//				}
+	//			}
+	//			
+	//			WordFileData* newWord = new WordFileData(word);
+	//			newWord->InsertFileData(wordFileData);
+	//			m_wordList->push_back(newWord );
+	//		}
+	//		else
+	//		{
+	//			assert(m_singleWord != nullptr);
+	//			if (m_singleWord != nullptr)
+	//			{
+	//				if (m_singleWord->m_wordString != word)
+	//				{
+	//					// If new word string is inserted, delete the "single word
+	//					// Stored in this class and transfer it to the m_wordList list
+	//					m_wordList = new WordListT;
+	//					m_wordList->push_back(m_singleWord);
+	//					WordFileData* newWord = new WordFileData(word);
+	//					newWord->InsertFileData(wordFileData);
+	//					m_wordList->push_back(newWord);
+	//				}
+	//				else
+	//				{
+	//					m_singleWord->InsertFileData(wordFileData);
+	//				}
+	//			}
+	//		}
+	//	}
 
+	//	Word(Word&& other) : m_singleWord(nullptr), m_wordList(nullptr)
+	//	{
+	//		// pilfer other’s resource
+	//		m_singleWord = other.m_singleWord;
+	//		m_wordList = other.m_wordList;
+	//		// reset other
+	//		other.m_singleWord = nullptr;
+	//		other.m_wordList = nullptr;
+	//	}
 
+	//private:
+	//	//unsigned int m_numberOfWords = 0;
+	//	WordFileData * m_singleWord = nullptr;
+	//	WordListT * m_wordList = nullptr;	// TODO should I use another map or would that use too much memory?
 
-
-	class Suffix
-	{
-	public:
-		typedef std::list<SuffixData*> SuffixListT;
-
-		Suffix(const char* const suffixString)
-			: m_singleSuffix(new SuffixData(suffixString))
-		{}
-
-		~Suffix()
-		{
-			// TODO delete the pointers on the m_suffixList list too!
-			delete m_singleSuffix;
-			delete m_suffixList;
-		}
-
-		bool HasOnlyOneSuffix()
-		{
-			return (m_suffixList == nullptr);
-		}
-
-
-		SuffixFileDataListT* GetFileData(const char* const suffixString)
-		{
-			if ((m_suffixList != nullptr))
-			{
-				for (auto existingSuffixes = m_suffixList->begin();
-					existingSuffixes != m_suffixList->end(); ++existingSuffixes)
-				{
-					if (std::string(suffixString) == std::string((*existingSuffixes)->m_suffixString) )
-					{
-						return (*existingSuffixes)->GetFileData();
-					}
-				}
-
-				return nullptr;
-			}
-			else
-			{
-				// Just return the m_singleSuffix data
-				assert(m_singleSuffix != nullptr);
-				if ( (m_singleSuffix != nullptr) && 
-					std::string(m_singleSuffix->m_suffixString) != std::string(suffixString) )
-				{
-					return m_singleSuffix->GetFileData();
-				}
-				else
-				{
-					return nullptr;
-				}
-			}
-		}
-
-
-		void InsertSuffix(const char* const suffix, SuffixFileData* suffixFileData)
-		{
-			if ((m_suffixList != nullptr))
-			{
-				//for( auto SuffixData data : m_suffixList)
-				for (auto existingSuffixes = m_suffixList->begin();
-				existingSuffixes != m_suffixList->end(); ++existingSuffixes)
-				{
-					if ((*existingSuffixes)->m_suffixString == suffix)
-					{
-						(*existingSuffixes)->InsertFileData(suffixFileData);
-						return;
-					}
-				}
-				
-				SuffixData* newSuffix = new SuffixData(suffix);
-				newSuffix->InsertFileData(suffixFileData);
-				m_suffixList->push_back(newSuffix );
-			}
-			else
-			{
-				assert(m_singleSuffix != nullptr);
-				if (m_singleSuffix != nullptr)
-				{
-					if (m_singleSuffix->m_suffixString != suffix)
-					{
-						// If new suffix string is inserted, delete the "single suffix
-						// Stored in this class and transfer it to the m_suffixList list
-						m_suffixList = new SuffixListT;
-						m_suffixList->push_back(m_singleSuffix);
-						SuffixData* newSuffix = new SuffixData(suffix);
-						newSuffix->InsertFileData(suffixFileData);
-						m_suffixList->push_back(newSuffix);
-					}
-					else
-					{
-						m_singleSuffix->InsertFileData(suffixFileData);
-					}
-				}
-			}
-		}
-
-		Suffix(Suffix&& other) : m_singleSuffix(nullptr), m_suffixList(nullptr)
-		{
-			// pilfer other’s resource
-			m_singleSuffix = other.m_singleSuffix;
-			m_suffixList = other.m_suffixList;
-			// reset other
-			other.m_singleSuffix = nullptr;
-			other.m_suffixList = nullptr;
-		}
-
-	private:
-		//unsigned int m_numberOfSuffixs = 0;
-		SuffixData * m_singleSuffix = nullptr;
-		SuffixListT * m_suffixList = nullptr;	// TODO should I use another map or would that use too much memory?
-
-		Suffix(const Suffix&) = delete;
-		Suffix& operator=(const Suffix&);
-	};
-
+	//	Word(const Word&) = delete;
+	//	Word& operator=(const Word&);
+	//};
+	
 
 
 
@@ -240,12 +237,10 @@ namespace dirsearch
 		static const unsigned int MIN_SEARCH_WORD_SIZE = 3;
 		static const unsigned int MAX_SEARCH_WORD_SIZE = 256;
 
-		//typedef unsigned char SuffixArrayT[PREFIX_ARRAY_DIM*m_wordMapKeyMaxLength];
-		//typedef std::unordered_map<std::string, Suffix* > WordMapT;
-		//typedef std::unordered_map<std::string, unsigned int > WordDataMapT;
+		typedef std::list<WordFileData> WordListT;
 		typedef std::unordered_map<std::string, MapData> WordDataMapT;
-		//typedef std::unordered_map<std::string, std::list<char> > ExistingWordMapT;	// for "bit pattern" impl
 		typedef std::unordered_map<std::string, unsigned int > ExistingWordMapT;
+		typedef std::unordered_map<std::string, WordListT > SearchWordMapT;
 		typedef char* FilenameArrayT[2000];
 
 		DirSearch(const std::string indexFilename, const unsigned int indexPercentage);
@@ -261,17 +256,15 @@ namespace dirsearch
 		void InsertWord();
 		void CreateIndexForFile(const char* const fileName, short fileArrayIndex);
 
-		SuffixFileDataListT* SearchAllFiles(const std::string& searchTerm);
 		void ReadAllFiles();
-
 		void InsertIntoWordMap(const std::string & prefix, const short fileArrayIndex, const int fileWordCount);
-		SuffixFileDataListT* SearchWordMap(const std::string & prefix);
-
 		std::vector<std::string> ConvertString(const std::vector<std::string>& searchStrings);
 
 		void ConstructIndexFile(const unsigned short fileArrayIndex);
 		void CullWordMap();
-		bool GetNextMapStringFromIndexFile(const char* & tempPointer);
+		bool GetNextMapStringFromIndexFile(const char* & movingPointerToBufferData);
+
+		void SearchWordsFromIndexFile(const WordDataMapT& searchTermDataMap);
 
 	private:
 		// Private data members
@@ -294,6 +287,7 @@ namespace dirsearch
 		bool m_putMapWordKeysInIndexFile = true;
 		IndexConstructionState m_indexConstructionState;
 		std::string m_nextMapStringFromIndexFile;
+		std::vector<std::string> m_filesInDir;
 		
 		// Used by the CreateIndexForFile() and InsertWord() functions
 		std::string m_wholeWord;

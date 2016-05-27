@@ -1,4 +1,12 @@
 //#define _CRT_SECURE_NO_WARNINGS
+#ifndef  _WIN32
+// Linux only headers
+#include <sys/types.h>
+#include <dirent.h>
+#else	// If win32
+//# define  strerror strerror_s
+# define _CRT_SECURE_NO_WARNINGS
+#endif // ! _WIN32
 
 #include <stdio.h>
 #include <iostream>
@@ -8,20 +16,13 @@
 #include <set>
 #include <locale>
 
-#ifndef  _WIN32
-// Linux only headers
-#include <sys/types.h>
-#include <dirent.h>
-#endif // ! _WIN32
-
-
 
 // Internal headers
 #include "DirSearch.h"
 #include "HelperFunctions.h"
 
 
-static const bool DEBUG_MODE = false;
+static const bool DEBUG_MODE = true;
 static const bool ENABLE_ERROR_MSG = true;
 static const bool DISPLAY_TODO = true;
 
@@ -116,6 +117,8 @@ namespace dirsearch {
 		, m_indexPercentage(indexPercentage)
 		, m_dirsearchDataSize(-1)	// TODO where should this be cacluated?
 	{
+		m_filesInDir.reserve(500);
+
 		if (DEBUG_MODE)
 			cout << "File lenght = " << m_dirsearchDataSize << endl;
 
@@ -125,6 +128,7 @@ namespace dirsearch {
 			m_useIndexFile = true;
 		}
 
+		m_useIndexFile = true;	// For now I'm hardcoding this mode
 		if (m_useIndexFile)
 		{
 			m_indexFile.open(m_indexFilename, ios::in | ios::binary);
@@ -133,7 +137,7 @@ namespace dirsearch {
 			m_indexFileSize = static_cast<unsigned int>(m_indexFile.tellg());
 			m_indexFile.seekg(0, ios::beg);
 
-			if (!DEBUG_MODE && m_indexFile && m_indexFile.good() && (m_indexFileSize > 0) )
+			if ( m_indexFile && m_indexFile.good() && (m_indexFileSize > 0) )
 			{
 				// If the file already exists, then we can assume it's the correct one and use it
 				// This is one of the contraints we were given
@@ -149,10 +153,60 @@ namespace dirsearch {
 				m_indexFile.seekp(0);
 			}
 		}
-		else
+
+#ifndef  _WIN32
+
+		DIR *dpdf;
+		struct dirent *epdf;
+		//std::string dirName = "/import/kamen/1/cs9319/a3/books200m/";
+		std::string dirName = "/import/kamen/1/cs9319/a3/legal1/";
+		//std::string dirName = "/import/kamen/1/cs9319/a3/man/";
+		//std::string dirName = "../Test_Data/books200m/";
+		//std::string dirName = "../Test_Data/legal1/";
+		//std::string dirName = "../Test_Data/man/";
+
+		dpdf = opendir(dirName.c_str());
+
+		if (dpdf != NULL)
 		{
-			//m_prefixArray = new char[PREFIX_ARRAY_DIM * m_wordMapKeyMaxLength];
+			short i = 0;
+			while (epdf = readdir(dpdf))
+			{
+				if ((string(epdf->d_name) != ".") && (string(epdf->d_name) != ".."))
+				{
+					std::string fullPathString = dirName + string(epdf->d_name);
+					m_filesInDir.push_back(fullPathString);
+					//if (DEBUG_MODE)
+					std::cout << epdf->d_name << std::endl;
+				}
+			}
+
+			closedir(dpdf);
 		}
+		else if (DEBUG_MODE)
+			std::cout << "Couldn't open direcot: " << dirName << std::endl;
+
+#else	// If win32
+
+		// TODO read every file in the target directory!!!
+		// test code
+		string fileName1 =
+			//"DirSearch.cpp";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1/07_1062.xml";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1/06_1243.xml";
+			"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/debug_data/README.txt";
+		//short fileArrayIndex = 0;
+		string fileName2 =
+			//"DirSearch.cpp";
+			"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/debug_data/README-Copy.txt";
+
+		if (DISPLAY_TODO)
+			cout << "Note that windows is using remove hard-coded files for testing..." << endl;
+
+		m_filesInDir.push_back(fileName1);
+		m_filesInDir.push_back(fileName2);
+
+#endif // ! _WIN32
 
 		if (m_createIndexFile)
 		{
@@ -173,84 +227,12 @@ namespace dirsearch {
 
 	void DirSearch::ReadAllFiles()
 	{
-		std::list<std::string> filesInDir;
-
-
-#ifndef  _WIN32
-		
-		DIR *dpdf;
-		struct dirent *epdf;
-		//std::string dirName = "/import/kamen/1/cs9319/a3/books200m/";
-		std::string dirName = "/import/kamen/1/cs9319/a3/legal1/";
-		//std::string dirName = "/import/kamen/1/cs9319/a3/man/";
-		//std::string dirName = "../Test_Data/books200m/";
-		//std::string dirName = "../Test_Data/legal1/";
-		//std::string dirName = "../Test_Data/man/";
-		//std::string dirName = "./";
-
-		//dpdf = opendir("./");
-		//dpdf = opendir("~cs9319/a3/books200m/");
-		dpdf = opendir(dirName.c_str());
-
-		if (dpdf != NULL) 
-		{
-			short i = 0;
-			while (epdf = readdir(dpdf)) 
-			{
-
-
-				
-
-				if( (string(epdf->d_name) != ".") && (string(epdf->d_name) != ".." ) )
-				{
-					std::string fullPathString = dirName + string(epdf->d_name);
-					filesInDir.push_back(fullPathString);
-					//if (DEBUG_MODE)
-					std::cout << epdf->d_name << std::endl;
-				}
-				//const char* const fullpathName = dirName.c_str();
-				//this->CreateIndexForFile(fullPathString.c_str(), i++);
-
-			}
-
-			closedir(dpdf);
-		}
-		else if (DEBUG_MODE)
-			std::cout << "Couldn't open direcot: " << dirName << std::endl;
-		
-		
-
-
-#else	// If win32
-
-		// TODO read every file in the target directory!!!
-		// test code
-		string fileName1 =
-			//"DirSearch.cpp";
-			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1/07_1062.xml";
-			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1/06_1243.xml";
-			"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/README.txt";
-		//short fileArrayIndex = 0;
-		string fileName2 =
-			//"DirSearch.cpp";
-			"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/man/basename.1.txt";
-
-		if (DISPLAY_TODO)
-			cout << "Note that windows is using remove hard-coded files for testing..." << endl;
-
-
-		filesInDir.push_back(fileName1);
-		//filesInDir.push_back(fileName2);
-
-		//this->CreateIndexForFile(fileName, fileArrayIndex);
-
-#endif // ! _WIN32
 
 		short fileArrayIndex = 0;
 		//string fileName = "README.txt";
-		//auto fileName = filesInDir.begin();
-		for (auto fileName = filesInDir.begin();
-		fileName != filesInDir.end(); ++fileName)
+		//auto fileName = m_filesInDir.begin();
+		for (auto fileName = m_filesInDir.begin();
+		fileName != m_filesInDir.end(); ++fileName)
 		{
 			this->CreateIndexForFile((*fileName).c_str(), fileArrayIndex++);
 		}
@@ -258,7 +240,7 @@ namespace dirsearch {
 	}
 
 
-	void DirSearch::Search(const std::vector<std::string>& searchStrings )
+	void DirSearch::Search(const std::vector<std::string>& searchStrings)
 	{
 		if (DISPLAY_TODO)
 		{
@@ -272,14 +254,15 @@ namespace dirsearch {
 		}
 
 		const std::vector<std::string> convertSearchString = ConvertString(searchStrings);
+		unsigned int fileSize = 0;
 
 		if (!m_createIndexFile)
 		{
-			// Only need to load the index file if it wasn't just created
+			// Only need to load the index file data if it wasn't just created
 			// by this instance of the app
 
 			m_indexFile.seekg(0, ios::end);
-			unsigned int fileSize = static_cast<unsigned int>(m_indexFile.tellg());
+			fileSize = static_cast<unsigned int>(m_indexFile.tellg());
 			m_indexFile.seekg(0, ios::beg);
 			m_fileWordCount = 0;
 
@@ -289,8 +272,6 @@ namespace dirsearch {
 				m_readBuffer = nullptr;
 			}
 
-			m_readBuffer = new char[fileSize + 1];
-			m_indexFile.read(m_readBuffer, fileSize);
 
 			if (DISPLAY_TODO)
 			{
@@ -313,40 +294,82 @@ namespace dirsearch {
 				cout << "Successfully Opened file: " << m_indexFilename << ", of size: "
 					<< fileSize << endl;
 			}
+		}
 
 
 
 
-			const char* tempPointer = m_readBuffer;
+
+		if (!m_createIndexFile)
+		{
+			// Only need to read data from index file if it wasn't created 
+			// in this instance of the app
+			const char* movingPointerToBufferData = m_readBuffer;
 			bool readAllKeyValues = false;
+			bool indexedFileNotRead = true;
+			//assert(m_wordMap.empty());
+			//m_wordMap.clear();
+			WordDataMapT searchTermDataMap;
+
 			while (!readAllKeyValues)
 			{
-				// Note, if I find a word that is a "substring" of another word,
-				// then I know I'm doing the "substring" search
 
-				if (GetNextMapStringFromIndexFile(tempPointer))
+				if (indexedFileNotRead ||
+					(static_cast<unsigned int>(movingPointerToBufferData - m_readBuffer) >=
+						(m_readBufferSize - 2 * MAX_SEARCH_WORD_SIZE)))
+				{
+					if (DISPLAY_TODO)
+					{
+						cout << "Need to read the index file in blocks!" << endl;
+						if (m_readBufferSize < fileSize)
+							m_readBufferSize = fileSize;
+					}
+
+
+					assert(DEBUG_MODE);
+					//todo need set seekg to where the file is is up to!!!!
+
+					indexedFileNotRead = false;
+					m_readBuffer = new char[m_readBufferSize + 1];
+					m_indexFile.read(m_readBuffer, fileSize);
+					movingPointerToBufferData = m_readBuffer;
+				}
+
+				if (GetNextMapStringFromIndexFile(movingPointerToBufferData))
 				{
 					readAllKeyValues = true;
 					break;
 				}
 
-				//tempPointer += m_nextMapStringFromIndexFile.size();
-
 				for (auto thisWord = convertSearchString.begin();
 				thisWord != convertSearchString.end(); ++thisWord)
 				{
-					if (m_nextMapStringFromIndexFile.find(*thisWord) != std::string::npos)
+					if (m_nextMapStringFromIndexFile == *thisWord)
 					{
-						// Then search for this term
-						const unsigned int startPosition = *(reinterpret_cast<const unsigned int*>(tempPointer));
+						const unsigned int startPosition = *(reinterpret_cast<const unsigned int*>(movingPointerToBufferData));
 						const unsigned short numberOfFileData = *(reinterpret_cast<const unsigned short*>(
-							tempPointer + sizeof(unsigned int) ) );
+							movingPointerToBufferData + sizeof(unsigned int)));
+
+						MapData searchTermData;
+						searchTermData.intVal = startPosition;
+						searchTermData.shortVal = numberOfFileData;
+
+						assert(searchTermDataMap.find(*thisWord) == searchTermDataMap.end());
+						searchTermDataMap[*thisWord] = searchTermData;
+					}
+					else if (m_nextMapStringFromIndexFile.find(*thisWord) != std::string::npos)
+					{
+						// If an exact word isn't found, but it's insise another string, then
+						// this is a substring search.
+						// Note that substring search will have a list
+						// TODO will need to create a list of SearchWordMapT
 					}
 				}
 
-				tempPointer += SIZE_OF_FILE_DATA;
+				movingPointerToBufferData += SIZE_OF_FILE_DATA;
 			}
 
+			SearchWordsFromIndexFile(searchTermDataMap);
 		}
 		else
 		{
@@ -355,6 +378,18 @@ namespace dirsearch {
 				cout << "When index file is created in this instance of app, " <<
 					"I just need to read off the map!" << endl;
 			}
+
+			assert(0);	// Not implemented yet
+
+			for (auto thisWord = convertSearchString.begin();
+			thisWord != convertSearchString.end(); ++thisWord)
+			{
+				// If the index file was created in this intance, then all the data
+				// is still in memory (i.e. in the m_wordMap) so just read straight 
+				// off the map. If a "direct" lookup from map doesn't return a value,
+				// then iterate through map and do a "substring" search.
+			}
+
 		}
 
 
@@ -375,7 +410,6 @@ namespace dirsearch {
 		// Search stage 3 
 		// If still no results, then search in every input file
 
-		SuffixFileDataListT* listOfTermFileData = nullptr;
 
 
 		/*
@@ -415,39 +449,100 @@ namespace dirsearch {
 	}
 
 
-	bool DirSearch::GetNextMapStringFromIndexFile(const char* & tempPointer)
+	void DirSearch::SearchWordsFromIndexFile(const WordDataMapT& searchTermDataMap)
+	{
+		SearchWordMapT searchWordMap;
+		assert(m_readBuffer != nullptr);
+
+		if (m_createIndexFile)
+		{
+			// If we have just created the index file, then it's in "out" mode,
+			// so close it and open it in "in" mode.
+			m_indexFile.close();
+			m_indexFile.open(m_indexFilename, ios::in | ios::binary);
+		}
+
+		// Iterate throught the "temp" map and count the data
+		// Only search files that ALL search terms occur in
+		// Then search for the file data for this term
+		for (auto thisWord = searchTermDataMap.begin();
+		thisWord != searchTermDataMap.end(); ++thisWord)
+		{
+			if (DEBUG_MODE)
+				cout << "Searching for search term: " << (*thisWord).first << endl << endl;
+
+			unsigned int debugCountWords = 0;
+			unsigned short fileIndex = 0;
+
+			const unsigned int& startPostion = (*thisWord).second.intVal;
+			const unsigned short& numberOfFileData = (*thisWord).second.shortVal;
+			//int debugVal = m_indexFile.tellg();
+			m_indexFile.seekg(startPostion);
+			const unsigned int numberOfBytesForFileData = numberOfFileData * SIZE_OF_FILE_DATA;
+			assert(m_readBufferSize >= numberOfBytesForFileData);
+			m_indexFile.read(m_readBuffer, numberOfBytesForFileData);
+			const char* movingPointerToBufferData = m_readBuffer;
+			
+			for (unsigned int i = 0; i < numberOfFileData; i++)
+			{
+				// Count how many time each word appears in each file
+				fileIndex =
+					*(reinterpret_cast<const unsigned short*>(movingPointerToBufferData));
+				movingPointerToBufferData += sizeof(unsigned short);
+
+
+				const unsigned int wordCount =
+					*(reinterpret_cast<const unsigned int*>(movingPointerToBufferData));
+				movingPointerToBufferData += sizeof(unsigned int);
+				debugCountWords += wordCount;
+
+				if (DEBUG_MODE ) //&& wordCount)
+				{
+					cout << (*thisWord).first << " found " << wordCount <<
+						" times in file: " << m_filesInDir.at(fileIndex) << endl;
+				}
+			}
+
+			if (DEBUG_MODE)
+			{
+				cout << endl << (*thisWord).first << " total count in all files = " 
+					<< debugCountWords << endl << endl;
+			}
+		}
+	}
+
+
+	bool DirSearch::GetNextMapStringFromIndexFile(const char* & movingPointerToBufferData)
 	{
 		// returns true when the "#" is found, indicating the end of map strings 
 		// in the index file
 		m_nextMapStringFromIndexFile.clear();
-		const char* const startPointer = tempPointer;
+		const char* const startPointer = movingPointerToBufferData;
 
-		bool endOfMapStrings = false;
 		unsigned int stringSize = 0;
 		char thisChar = 0;
 		while (true)
 		{
-			thisChar = *(tempPointer);
-			tempPointer++;
+			thisChar = *(movingPointerToBufferData);
+			movingPointerToBufferData++;
 			if (thisChar == ',')
 				break;
 			else if (thisChar == '#')
 			{
-				endOfMapStrings = true;
-				break;
+				return true;
 			}
 			stringSize++;
 		}
 
 		m_nextMapStringFromIndexFile = string(startPointer, stringSize);
 
-		return endOfMapStrings;
+		return false;
 	}
 
-
-	SuffixFileDataListT* DirSearch::SearchAllFiles(const std::string& searchTerm)
+	/*
+	WordFileDataListT* DirSearch::SearchAllFiles(const std::string& searchTerm)
 	{
-		SuffixFileDataListT* listOfTermFileData = nullptr;
+		WordFileDataListT* listOfTermFileData = nullptr;
 
 		short fileArrayIndex = 0;
 		//if (DEBUG_MODE)
@@ -461,12 +556,12 @@ namespace dirsearch {
 
 
 		// if the whole word is small enough to be a key on the map, then
-		// no suffix is required
+		// no word is required
 		listOfTermFileData = SearchWordMap(searchTerm);
 
 		return listOfTermFileData;
 	}
-
+	*/
 
 
 
@@ -511,18 +606,6 @@ namespace dirsearch {
 				m_readBuffer = new char[m_readBufferSize + 1];
 			}
 
-			
-			// Get all of the "tokens"
-			/*
-			char* token = strtok(m_readBuffer, " ");
-			while (token)
-			{
-				printf("token: %s\n", token);
-				token = strtok(NULL, " ");
-			}
-			*/
-
-
 			char nextChar = 0;
 			char convertedChar = 0;
 			char previousConvertedChar = 0;
@@ -535,13 +618,10 @@ namespace dirsearch {
 			m_currentWordLength = 0;
 			m_wholeWord.clear();
 
-
 			// TODO to read in smaller chunks, I just need to put the code below
 			// in a for loop for each chunck, so I won't need to change the logic
 			// (i.e. the code below won't notice the difference).
 			inputFile.read(m_readBuffer, fileSize);
-
-
 
 			if (DISPLAY_TODO)
 			{
@@ -556,7 +636,13 @@ namespace dirsearch {
 			if (!inputFile)
 			{
 				if (DEBUG_MODE || ENABLE_ERROR_MSG)
+				{
 					cerr << "Could not open input file: " << fileName << endl;
+					//" because following error occured: " << strerror(errno) << endl;
+
+					throw std::runtime_error("Couldn't open file mentioned above");
+				}
+						
 				return;
 			}
 			else if (DEBUG_MODE)
@@ -564,8 +650,6 @@ namespace dirsearch {
 				cout << "Successfully Opened file: " << fileName << ", of size: "
 					<< fileSize << endl;
 			}
-
-
 
 			for (unsigned int i = 0; i < fileSize; i++)
 			{
@@ -582,19 +666,22 @@ namespace dirsearch {
 				{
 					// If not an alpha value
 
-					if(searchMode != traversingOversizedWord)
+					if(searchMode == readingAlphaString)
 					{
 						// Put this in a function and call at end too
 						this->InsertWord();
 					}
-
-					startNewWord = true;
-					arrayIndexBase = 0;
-					m_wholeWord.clear();
-					m_currentWordLength = 0;
-					searchMode = startSearch;
-					previousConvertedChar = 0;
-					compressDoubleLetter = false;
+					
+					if (searchMode != traversingNonAlpha)
+					{
+						startNewWord = true;
+						arrayIndexBase = 0;
+						m_wholeWord.clear();
+						m_currentWordLength = 0;
+						searchMode = traversingNonAlpha;
+						previousConvertedChar = 0;
+						compressDoubleLetter = false;
+					}
 				}
 				// If this is an alpha value and not traversing oversized word
 				else if (searchMode != traversingOversizedWord) 
@@ -620,8 +707,6 @@ namespace dirsearch {
 					m_wholeWord.push_back(convertedChar);
 					m_currentWordLength++;
 				}
-				
-				compressDoubleLetter = false;
 			}
 
 
@@ -722,23 +807,6 @@ namespace dirsearch {
 
 
 
-	
-	SuffixFileDataListT* DirSearch::SearchWordMap(const std::string& wholeWord)
-	{
-		if (m_wordMap.find(wholeWord) == m_wordMap.end())
-		{
-			return nullptr;
-		}
-		else
-		{
-			assert(0);	// This isn't implemented yet
-			return nullptr;
-		}
-	}
-
-
-
-
 	void DirSearch::InsertWord()
 	{
 		if ( (m_currentWordLength < MIN_SEARCH_WORD_SIZE) || 
@@ -751,7 +819,7 @@ namespace dirsearch {
 
 		//else if (m_currentWordLength < m_wordMapKeyMaxLength)
 		//{
-			// Only need to insert the "wholeWord" (i.e. the suffix can be empty)
+			// Only need to insert the "wholeWord" (i.e. the word can be empty)
 			// Store a map of currently inserted words and init the bitpattern variables for the new words 
 			// for this file
 			//WordMapT
@@ -869,20 +937,6 @@ namespace dirsearch {
 				m_indexFile.write(word.c_str(), word.size());
 				m_indexFilePosition = static_cast<unsigned int>(m_indexFile.tellp());
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 				if (DISPLAY_TODO)
 					cout << "TODO: I dont think the for loop below can be written to the map instead of the index file!"
 					<< endl;
@@ -936,7 +990,7 @@ namespace dirsearch {
 					const unsigned int fileWordCount = (*thisWord).second;
 
 					// Then write the index number for this file ( range = 0-2000)
-					const char*const writeFileIndexBuffer = reinterpret_cast<const char*const>(&fileWordCount);
+					const char*const writeFileIndexBuffer = reinterpret_cast<const char*const>(&fileArrayIndex);
 					m_indexFile.seekp(writePosition);
 					m_indexFile.write(writeFileIndexBuffer, sizeof(unsigned short));
 

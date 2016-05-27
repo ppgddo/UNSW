@@ -16,7 +16,7 @@ using namespace dirsearch;
 using namespace dirsearch::helpers;
 
 
-static const bool DEBUG_MAIN_MODE = false;
+static const bool DEBUG_MAIN_MODE = true;
 
 
 int main(int argc, char ** argv)
