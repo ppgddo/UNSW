@@ -5,7 +5,13 @@
 #include <dirent.h>
 #else	// If win32
 //# define  strerror strerror_s
-# define _CRT_SECURE_NO_WARNINGS
+//# define _CRT_SECURE_NO_WARNINGS
+#include <windows.h>
+#include <tchar.h> 
+#include <atlstr.h>
+#include <stdio.h>
+#include <strsafe.h>
+#pragma comment(lib, "User32.lib")
 #endif // ! _WIN32
 
 #include <stdio.h>
@@ -104,8 +110,7 @@ namespace dirsearch {
 
 		if (DISPLAY_TODO)
 		{
-			cout << "TODO: Delete the pointers in the m_wordMap!!!" << endl;
-			cout << "TODO: For the search terms replace double letters with capitals to be consistant!!!!!!!" << endl;
+			cout << "TODO: pass in the directory file path as an INPUT ARG!!!" << endl;
 			cout << "Map size = " << m_wordMapSize << endl;
 		}
 	}
@@ -117,7 +122,7 @@ namespace dirsearch {
 		, m_indexPercentage(indexPercentage)
 		, m_dirsearchDataSize(-1)	// TODO where should this be cacluated?
 	{
-		m_filesInDir.reserve(500);
+		m_filesInDir.reserve(2000);
 
 		if (DEBUG_MODE)
 			cout << "File lenght = " << m_dirsearchDataSize << endl;
@@ -158,14 +163,14 @@ namespace dirsearch {
 
 		DIR *dpdf;
 		struct dirent *epdf;
-		//std::string dirName = "/import/kamen/1/cs9319/a3/books200m/";
-		std::string dirName = "/import/kamen/1/cs9319/a3/legal1/";
-		//std::string dirName = "/import/kamen/1/cs9319/a3/man/";
-		//std::string dirName = "../Test_Data/books200m/";
-		//std::string dirName = "../Test_Data/legal1/";
-		//std::string dirName = "../Test_Data/man/";
+		//m_dirFullPath = "/import/kamen/1/cs9319/a3/books200m/";
+		m_dirFullPath = "/import/kamen/1/cs9319/a3/legal1/";
+		//m_dirFullPath = "/import/kamen/1/cs9319/a3/man/";
+		//m_dirFullPath = "../Test_Data/books200m/";
+		//m_dirFullPath = "../Test_Data/legal1/";
+		//m_dirFullPath = "../Test_Data/man/";
 
-		dpdf = opendir(dirName.c_str());
+		dpdf = opendir(m_dirFullPath.c_str());
 
 		if (dpdf != NULL)
 		{
@@ -174,8 +179,8 @@ namespace dirsearch {
 			{
 				if ((string(epdf->d_name) != ".") && (string(epdf->d_name) != ".."))
 				{
-					std::string fullPathString = dirName + string(epdf->d_name);
-					m_filesInDir.push_back(fullPathString);
+					std::string filenameString = string(epdf->d_name);
+					m_filesInDir.push_back(filenameString);
 					//if (DEBUG_MODE)
 					std::cout << epdf->d_name << std::endl;
 				}
@@ -184,20 +189,14 @@ namespace dirsearch {
 			closedir(dpdf);
 		}
 		else if (DEBUG_MODE)
-			std::cout << "Couldn't open direcot: " << dirName << std::endl;
+			std::cout << "Couldn't open direcot: " << m_dirFullPath << std::endl;
 
 #else	// If win32
-
-		// TODO read every file in the target directory!!!
+		/*
 		// test code
 		string fileName1 =
-			//"DirSearch.cpp";
-			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1/07_1062.xml";
-			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1/06_1243.xml";
 			"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/debug_data/README.txt";
-		//short fileArrayIndex = 0;
 		string fileName2 =
-			//"DirSearch.cpp";
 			"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/debug_data/README-Copy.txt";
 
 		if (DISPLAY_TODO)
@@ -205,6 +204,81 @@ namespace dirsearch {
 
 		m_filesInDir.push_back(fileName1);
 		m_filesInDir.push_back(fileName2);
+		*/
+
+
+
+		// from: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365200%28v=vs.85%29.aspx
+
+		WIN32_FIND_DATA ffd;
+		LARGE_INTEGER filesize;
+		TCHAR szDir[MAX_PATH];
+		//size_t length_of_arg;
+		HANDLE hFind = INVALID_HANDLE_VALUE;
+		DWORD dwError = 0;
+
+		m_dirFullPath =
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/debug_data/";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1/";
+			"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/man/";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/man_debug/";
+
+		TCHAR *param = new TCHAR[m_dirFullPath.size() + 1];
+		param[m_dirFullPath.size()] = 0;
+		//As much as we'd love to, we can't use memcpy() because
+		//sizeof(TCHAR)==sizeof(char) may not be true:
+		std::copy(m_dirFullPath.begin(), m_dirFullPath.end(), param);
+		
+		//const TCHAR *pathTCHAR = m_dirFullPath.c_str();
+
+		StringCchCopy(szDir, MAX_PATH, param);
+		StringCchCat(szDir, MAX_PATH, TEXT("\\*"));
+
+		hFind = FindFirstFile(szDir, &ffd);
+
+		if (INVALID_HANDLE_VALUE == hFind)
+		{
+			cerr << (TEXT("FindFirstFile"));
+		}
+
+
+		do
+		{
+			if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+			{
+				_tprintf(TEXT("  %s   <DIR>\n"), ffd.cFileName);
+			}
+			else
+			{
+				filesize.LowPart = ffd.nFileSizeLow;
+				filesize.HighPart = ffd.nFileSizeHigh;
+				_tprintf(TEXT("  %s   %ld bytes\n"), ffd.cFileName, filesize.QuadPart);
+
+				//char* fileString = CW2A(L"LPWSTR STRING");
+				//CA2T szr(ffd.cFileName);
+				//LPCSTR fileCharPointer = CW2A(ffd.cFileName);
+				//string fileString(fileCharPointer);
+
+				//PTSTR pszFileName = ffd.cFileName;
+				//string fileString(pszFileName);
+				m_filesInDir.push_back(string(CW2A(ffd.cFileName)));
+			}
+		} while (FindNextFile(hFind, &ffd) != 0);
+
+		dwError = GetLastError();
+		if (dwError != ERROR_NO_MORE_FILES)
+		{
+			cerr << (TEXT("FindFirstFile"));
+		}
+
+		FindClose(hFind);
+
+
+
+
+
+
+
 
 #endif // ! _WIN32
 
@@ -234,7 +308,8 @@ namespace dirsearch {
 		for (auto fileName = m_filesInDir.begin();
 		fileName != m_filesInDir.end(); ++fileName)
 		{
-			this->CreateIndexForFile((*fileName).c_str(), fileArrayIndex++);
+			string fullFilePath = m_dirFullPath + (*fileName);
+			this->CreateIndexForFile(fullFilePath.c_str(), fileArrayIndex++);
 		}
 
 	}
@@ -316,13 +391,13 @@ namespace dirsearch {
 
 				if (indexedFileNotRead ||
 					(static_cast<unsigned int>(movingPointerToBufferData - m_readBuffer) >=
-						(m_readBufferSize - 2 * MAX_SEARCH_WORD_SIZE)))
+						(m_readIndexBufferSize - 2 * MAX_SEARCH_WORD_SIZE)))
 				{
 					if (DISPLAY_TODO)
 					{
 						cout << "Need to read the index file in blocks!" << endl;
-						if (m_readBufferSize < fileSize)
-							m_readBufferSize = fileSize;
+						if (m_readIndexBufferSize < fileSize)
+							m_readIndexBufferSize = fileSize;
 					}
 
 
@@ -330,7 +405,7 @@ namespace dirsearch {
 					//todo need set seekg to where the file is is up to!!!!
 
 					indexedFileNotRead = false;
-					m_readBuffer = new char[m_readBufferSize + 1];
+					m_readBuffer = new char[m_readIndexBufferSize + 1];
 					m_indexFile.read(m_readBuffer, fileSize);
 					movingPointerToBufferData = m_readBuffer;
 				}
@@ -375,11 +450,12 @@ namespace dirsearch {
 		{
 			if (DISPLAY_TODO)
 			{
-				cout << "When index file is created in this instance of app, " <<
+				cout << "TODO: Not implemented yet! When index file is created in this instance of app, " <<
 					"I just need to read off the map!" << endl;
 			}
+			else
+				assert(0);	// Not implemented yet
 
-			assert(0);	// Not implemented yet
 
 			for (auto thisWord = convertSearchString.begin();
 			thisWord != convertSearchString.end(); ++thisWord)
@@ -479,7 +555,8 @@ namespace dirsearch {
 			//int debugVal = m_indexFile.tellg();
 			m_indexFile.seekg(startPostion);
 			const unsigned int numberOfBytesForFileData = numberOfFileData * SIZE_OF_FILE_DATA;
-			assert(m_readBufferSize >= numberOfBytesForFileData);
+			assert( (m_readBufferSize >= numberOfBytesForFileData) &&
+				(m_readIndexBufferSize >= numberOfBytesForFileData) );
 			m_indexFile.read(m_readBuffer, numberOfBytesForFileData);
 			const char* movingPointerToBufferData = m_readBuffer;
 			
@@ -499,7 +576,8 @@ namespace dirsearch {
 				if (DEBUG_MODE ) //&& wordCount)
 				{
 					cout << (*thisWord).first << " found " << wordCount <<
-						" times in file: " << m_filesInDir.at(fileIndex) << endl;
+						" times in file: " << m_filesInDir.at(fileIndex) << 
+						" with file index value = " << fileIndex << endl;
 				}
 			}
 
@@ -662,7 +740,36 @@ namespace dirsearch {
 					searchMode = traversingOversizedWord;
 				}
 
-				if( (isalpha(nextChar) == 0) )
+				// If this is an alpha value and not traversing oversized word
+				
+				if( (nextChar > 64) && (isalpha(nextChar) != 0) )
+				{
+					// If it is alpha, only process it if it isn't an oversized word
+					if (searchMode != traversingOversizedWord)
+					{
+						convertedChar = std::tolower(nextChar, m_toLowerLocale);
+						if (convertedChar == previousConvertedChar)
+						{
+							// I will encode "double letters as their capital equivalent
+							convertedChar = std::toupper(convertedChar, m_toLowerLocale);
+							compressDoubleLetter = true;
+							previousConvertedChar = 0;
+						}
+						else
+						{
+							previousConvertedChar = convertedChar;
+						}
+
+						searchMode = readingAlphaString;
+						if (compressDoubleLetter)
+							m_wholeWord.pop_back();
+
+						compressDoubleLetter = false;
+						m_wholeWord.push_back(convertedChar);
+						m_currentWordLength++;
+					}
+				}
+				else
 				{
 					// If not an alpha value
 
@@ -682,30 +789,6 @@ namespace dirsearch {
 						previousConvertedChar = 0;
 						compressDoubleLetter = false;
 					}
-				}
-				// If this is an alpha value and not traversing oversized word
-				else if (searchMode != traversingOversizedWord) 
-				{
-					convertedChar = std::tolower(nextChar, m_toLowerLocale);
-					if (convertedChar == previousConvertedChar)
-					{
-						// I will encode "double letters as their capital equivalent
-						convertedChar = std::toupper(convertedChar, m_toLowerLocale);
-						compressDoubleLetter = true;
-						previousConvertedChar = 0;
-					}
-					else
-					{
-						previousConvertedChar = convertedChar;
-					}
-
-					searchMode = readingAlphaString;
-					if (compressDoubleLetter)
-						m_wholeWord.pop_back();
-
-					compressDoubleLetter = false;
-					m_wholeWord.push_back(convertedChar);
-					m_currentWordLength++;
 				}
 			}
 
@@ -985,7 +1068,8 @@ namespace dirsearch {
 					const string& word = (*thisWord).first;
 					const unsigned int thisWordFileDataPosition = m_wordMap[word].intVal;
 					unsigned short& offset = m_wordMap[word].shortVal;
-					unsigned int writePosition = thisWordFileDataPosition + offset;
+					unsigned int writePosition = thisWordFileDataPosition + 
+						(offset * (sizeof(unsigned short) + sizeof(unsigned int) ) );
 					// Get the word count value for this word for this file
 					const unsigned int fileWordCount = (*thisWord).second;
 
@@ -1001,7 +1085,7 @@ namespace dirsearch {
 					m_indexFile.write(writeCountBuffer, sizeof(unsigned int));
 
 					// Update the location of the "offset value"
-					offset = sizeof(unsigned short) + sizeof(unsigned int);
+					offset++;
 				}
 			}
 		}

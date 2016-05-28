@@ -3,7 +3,7 @@
 CC=g++
 # Hey!, I am comment number 2. I want to say that CFLAGS will be the
 # options I'll pass to the compiler.
-CFLAGS=-c -Wall -std=c++11
+CFLAGS=-c -m32 -Wall -std=c++11 
 
 all: dirsearchsearch
 
