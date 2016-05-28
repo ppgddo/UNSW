@@ -26,26 +26,38 @@ int main(int argc, char ** argv)
 		std::vector<std::string> cmdStrings;
 		ParseCmdLine(argc, argv, cmdStrings);
 
-		const std::string& searchCmd = cmdStrings[1];
+		const std::string& searchCmd = cmdStrings[2];
 		int indexPercentage = 20;	// Default indexPercentage
 		std::vector<std::string>::iterator cmdIterator = cmdStrings.begin();
 		cmdIterator++;
-
-		if (searchCmd.find("-s") != string::npos)
-		{
-			indexPercentage = std::stoi(cmdStrings[2]);
-			cmdIterator++;
-			cmdIterator++;
-		}
-
 		std::vector<std::string> searchStrings;
-		for (; cmdIterator != cmdStrings.end(); ++cmdIterator)
+
+		try
 		{
-			searchStrings.push_back(*cmdIterator);
+			if (searchCmd.find("-s") != string::npos)
+			{
+				indexPercentage = std::stoi(cmdStrings[3]);
+				cmdIterator++;
+				cmdIterator++;
+			}
+			
+			for (; cmdIterator != cmdStrings.end(); ++cmdIterator)
+			{
+				searchStrings.push_back(*cmdIterator);
+			}
 		}
+		catch (...)
+		{
+			if (DEBUG_MAIN_MODE)
+			{
+				cerr << "main function couldn't pass all input args! " << endl;
+				assert(0);
+			}
+		}
+
 
 		// No need to pass the "
-		DirSearch dirsearch(cmdStrings[0], indexPercentage);
+		DirSearch dirsearch(cmdStrings[0], cmdStrings[1], indexPercentage);
 		dirsearch.Search(searchStrings);
 
 	}
@@ -53,7 +65,7 @@ int main(int argc, char ** argv)
 	{
 		if (DEBUG_MAIN_MODE)
 		{
-			cerr << "DirSearch::CreateIndexForFile threw following exception! " << e.what() << endl;
+			cerr << "main function threw following exception! " << e.what() << endl;
 			assert(0);
 		}
 	}
@@ -61,7 +73,7 @@ int main(int argc, char ** argv)
 	{
 		if (DEBUG_MAIN_MODE )
 		{
-			cerr << "DirSearch::CreateIndexForFile threw unknown exception! " << endl;
+			cerr << "main function threw unknown exception! " << endl;
 			assert(0);
 		}
 	}

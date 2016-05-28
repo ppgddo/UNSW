@@ -57,12 +57,14 @@ namespace dirsearch {
 
 			previousConvertedChar = 0;
 			compressDoubleLetter = false;
+			unsigned short wordUncompressedSize = 0;
 
 			for (auto nextChar = (*nextWord).begin();
-				nextChar != (*nextWord).end(); ++nextChar)
+			nextChar != (*nextWord).end(); ++nextChar)
 			{
-				if (isalpha(*nextChar))
+				if( isalpha(*nextChar) )
 				{
+					wordUncompressedSize++;
 					char convertedChar = std::tolower(*nextChar, m_toLowerLocale);
 					if (convertedChar == previousConvertedChar)
 					{
@@ -80,17 +82,21 @@ namespace dirsearch {
 						newWord.pop_back();
 
 					compressDoubleLetter = false;
+
 					newWord.push_back(convertedChar);
 				}
-				else
+				else if ((*nextChar) == ' ')
 				{
+					wordUncompressedSize++;
 					newWord.push_back(*nextChar);
 					previousConvertedChar = 0;
 					compressDoubleLetter = false;
 				}
 			}
 
-			convertedStrings.push_back(newWord);
+			// Min search term lengh is within the valid size range
+			if( (wordUncompressedSize >= 3) && (wordUncompressedSize <= MAX_SEARCH_WORD_SIZE) )
+				convertedStrings.push_back(newWord);
 		}
 
 		return convertedStrings;
@@ -116,9 +122,11 @@ namespace dirsearch {
 	}
 
 
-	DirSearch::DirSearch(const std::string indexFilename, const unsigned int indexPercentage
+	DirSearch::DirSearch(const std::string& targetDirectory, const std::string& indexFilename, 
+		const unsigned int indexPercentage
 		)
-		: m_indexFilename(indexFilename)
+		: m_dirFullPath(targetDirectory)
+		, m_indexFilename(indexFilename)
 		, m_indexPercentage(indexPercentage)
 		, m_dirsearchDataSize(-1)	// TODO where should this be cacluated?
 	{
@@ -164,7 +172,7 @@ namespace dirsearch {
 		DIR *dpdf;
 		struct dirent *epdf;
 		//m_dirFullPath = "/import/kamen/1/cs9319/a3/books200m/";
-		m_dirFullPath = "/import/kamen/1/cs9319/a3/legal1/";
+		//m_dirFullPath = "/import/kamen/1/cs9319/a3/legal1/";
 		//m_dirFullPath = "/import/kamen/1/cs9319/a3/man/";
 		//m_dirFullPath = "../Test_Data/books200m/";
 		//m_dirFullPath = "../Test_Data/legal1/";
@@ -217,11 +225,12 @@ namespace dirsearch {
 		HANDLE hFind = INVALID_HANDLE_VALUE;
 		DWORD dwError = 0;
 
-		m_dirFullPath =
+		//m_dirFullPath =
 			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/debug_data/";
 			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1/";
-			"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/man/";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/man/";
 			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/man_debug/";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/booknmail/";
 
 		TCHAR *param = new TCHAR[m_dirFullPath.size() + 1];
 		param[m_dirFullPath.size()] = 0;
@@ -436,8 +445,10 @@ namespace dirsearch {
 					{
 						// If an exact word isn't found, but it's insise another string, then
 						// this is a substring search.
-						// Note that substring search will have a list
-						// TODO will need to create a list of SearchWordMapT
+						// Note that substring search will just append the "filedata" to the
+						// list that includes the "filedata" of all other substring matches.
+						// Then the "word count" for each file is just the addition of all
+						// the word counts for that file in the list.
 					}
 				}
 
@@ -527,7 +538,7 @@ namespace dirsearch {
 
 	void DirSearch::SearchWordsFromIndexFile(const WordDataMapT& searchTermDataMap)
 	{
-		SearchWordMapT searchWordMap;
+		WordDataMapT resultWordCountMap;
 		assert(m_readBuffer != nullptr);
 
 		if (m_createIndexFile)
@@ -544,6 +555,7 @@ namespace dirsearch {
 		for (auto thisWord = searchTermDataMap.begin();
 		thisWord != searchTermDataMap.end(); ++thisWord)
 		{
+			const string& word = (*thisWord).first;
 			if (DEBUG_MODE)
 				cout << "Searching for search term: " << (*thisWord).first << endl << endl;
 
@@ -559,6 +571,13 @@ namespace dirsearch {
 				(m_readIndexBufferSize >= numberOfBytesForFileData) );
 			m_indexFile.read(m_readBuffer, numberOfBytesForFileData);
 			const char* movingPointerToBufferData = m_readBuffer;
+
+
+			// Prepare a map entry for this search term.
+			MapData searchResultData;
+			searchResultData.intVal = 0;
+			searchResultData.shortVal = 0;
+			resultWordCountMap[word] = searchResultData;
 			
 			for (unsigned int i = 0; i < numberOfFileData; i++)
 			{
@@ -567,11 +586,16 @@ namespace dirsearch {
 					*(reinterpret_cast<const unsigned short*>(movingPointerToBufferData));
 				movingPointerToBufferData += sizeof(unsigned short);
 
-
 				const unsigned int wordCount =
 					*(reinterpret_cast<const unsigned int*>(movingPointerToBufferData));
 				movingPointerToBufferData += sizeof(unsigned int);
 				debugCountWords += wordCount;
+
+				// Add this word count and file index to a map of the "word"
+				// Note that the "substring search" might have multiple "word counts"
+				// for a given file (i.e. for all the different substrings that match)
+				resultWordCountMap[word].shortVal = fileIndex;
+				resultWordCountMap[word].intVal = wordCount;
 
 				if (DEBUG_MODE ) //&& wordCount)
 				{
@@ -587,6 +611,14 @@ namespace dirsearch {
 					<< debugCountWords << endl << endl;
 			}
 		}
+
+		DisplaySearchResults(resultWordCountMap);
+	}
+
+
+	void DirSearch::DisplaySearchResults(const WordDataMapT& resultWordCountMap)
+	{
+
 	}
 
 
