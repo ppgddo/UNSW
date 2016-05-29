@@ -28,9 +28,9 @@
 #include "HelperFunctions.h"
 
 
-static const bool DEBUG_MODE = true;
-static const bool ENABLE_ERROR_MSG = true;
-static const bool DISPLAY_TODO = true;
+static const bool DEBUG_MODE = false;
+static const bool ENABLE_ERROR_MSG = false;
+static const bool DISPLAY_TODO = false;
 
 static const unsigned int SIZE_OF_UNSIGNED_SHORT = sizeof(unsigned short);
 static const unsigned int SIZE_OF_UNSIGNED_INT = sizeof(unsigned int);
@@ -123,12 +123,13 @@ namespace dirsearch {
 
 
 	DirSearch::DirSearch(const std::string& targetDirectory, const std::string& indexFilename, 
-		const unsigned int indexPercentage
+		const std::vector<std::string>& searchStrings,const unsigned int indexPercentage
 		)
 		: m_dirFullPath(targetDirectory + "/" )
 		, m_indexFilename(indexFilename)
 		, m_indexPercentage(indexPercentage)
 		, m_dirsearchDataSize(-1)	// TODO where should this be cacluated?
+		, m_convertSearchString( ConvertString(searchStrings) )
 	{
 		m_filesInDir.reserve(2000);
 
@@ -141,7 +142,22 @@ namespace dirsearch {
 			m_useIndexFile = true;
 		}
 
-		m_useIndexFile = true;		// For now I'm hardcoding this mode
+		if (DISPLAY_TODO)
+		{
+			cout << endl << "TODO: WARNING! Index file is disabled for now" <<
+				endl << endl;
+		}
+
+		{
+			// TODO remove this hardcoded test valeus
+			m_useIndexFile = false;		// For now I'm hardcoding this mode
+			m_createIndexFile = false;
+			m_indexFile.open(m_indexFilename, ios::in | ios::binary);
+		}
+		
+		
+		
+		
 		if (m_useIndexFile)
 		{
 			m_useIndexFileMap = true;	// For now I'm hardcoding this mode, but it should only be set if m_useIndexFile is true
@@ -154,6 +170,20 @@ namespace dirsearch {
 
 			if ( m_indexFile && m_indexFile.good() && (m_indexFileSize > 0) )
 			{
+				m_createIndexFile = false;
+
+
+
+
+				//m_indexFileSize = 2;	// TODO hardcoding this for now
+
+
+
+				if (m_indexFileSize <= 2 )
+					m_useIndexFile = false;
+				else
+					m_useIndexFile = true;
+
 				// If the file already exists, then we can assume it's the correct one and use it
 				// This is one of the contraints we were given
 				assert(!DEBUG_MODE || (m_indexFileSize <= indexPercentage*m_dirsearchDataSize) );
@@ -164,6 +194,8 @@ namespace dirsearch {
 				m_indexFile.close();
 				m_indexFileSize = 0;
 				m_createIndexFile = true;
+				m_useIndexFile = false;		// Don't use index file when it's getting contructed, 
+											// just search files as it's being created
 				m_indexFile.open(m_indexFilename, ios::out | ios::binary);
 				m_indexFile.seekp(0);
 			}
@@ -309,6 +341,10 @@ namespace dirsearch {
 			// for each file it reads to write all of the corresponding "file data".
 			this->ReadAllFiles();
 		}
+		else
+		{
+			this->ReadAllFiles();
+		}
 
 	}
 
@@ -322,13 +358,13 @@ namespace dirsearch {
 		fileName != m_filesInDir.end(); ++fileName)
 		{
 			string fullFilePath = m_dirFullPath + (*fileName);
-			this->CreateIndexForFile(fullFilePath.c_str(), fileArrayIndex++);
+			this->ReadAndSearchFile(fullFilePath.c_str(), fileArrayIndex++);
 		}
 
 	}
 
 
-	void DirSearch::Search(const std::vector<std::string>& searchStrings)
+	void DirSearch::Search()
 	{
 		if (DISPLAY_TODO)
 		{
@@ -341,7 +377,6 @@ namespace dirsearch {
 			cout << "Searching for terms..." << endl << endl;
 		}
 
-		const std::vector<std::string> convertSearchString = ConvertString(searchStrings);
 		unsigned int fileSize = 0;
 
 		if (!m_createIndexFile)
@@ -386,9 +421,9 @@ namespace dirsearch {
 
 
 
-
-
-		if (!m_createIndexFile)
+		
+		
+		if (m_useIndexFile)
 		{
 			// Only need to read data from index file if it wasn't created 
 			// in this instance of the app
@@ -429,8 +464,8 @@ namespace dirsearch {
 					break;
 				}
 
-				for (auto thisWord = convertSearchString.begin();
-				thisWord != convertSearchString.end(); ++thisWord)
+				for (auto thisWord = m_convertSearchString.begin();
+				thisWord != m_convertSearchString.end(); ++thisWord)
 				{
 					if (m_nextMapStringFromIndexFile == *thisWord)
 					{
@@ -461,6 +496,19 @@ namespace dirsearch {
 
 			SearchWordsFromIndexFile(searchTermDataMap);
 		}
+		else if (!m_createIndexFile)
+		{
+			ResultFilenameDataT searchResultsWithFileNames;
+			
+			for (auto thisFile = m_resultMap.begin();
+			thisFile != m_resultMap.end(); ++thisFile)
+			{
+				searchResultsWithFileNames[m_filesInDir.at((*thisFile).first)]
+					= (*thisFile).second;
+			}
+
+			DisplaySearchResults(searchResultsWithFileNames);
+		}
 		else
 		{
 			if (DISPLAY_TODO)
@@ -472,8 +520,8 @@ namespace dirsearch {
 			//	assert(!DEBUG_MODE);	// Not implemented yet
 
 
-			for (auto thisWord = convertSearchString.begin();
-			thisWord != convertSearchString.end(); ++thisWord)
+			for (auto thisWord = m_convertSearchString.begin();
+			thisWord != m_convertSearchString.end(); ++thisWord)
 			{
 				// If the index file was created in this intance, then all the data
 				// is still in memory (i.e. in the m_wordMap) so just read straight 
@@ -506,8 +554,8 @@ namespace dirsearch {
 		/*
 		// TODO remove this hard coded search ?
 		// test code
-		for (auto searchTerm = convertSearchString.begin();
-			searchTerm != convertSearchString.end(); ++searchTerm)
+		for (auto searchTerm = m_convertSearchString.begin();
+			searchTerm != m_convertSearchString.end(); ++searchTerm)
 		{
 			listOfTermFileData = this->SearchAllFiles(*searchTerm);
 
@@ -552,7 +600,7 @@ namespace dirsearch {
 			m_indexFile.close();
 			m_indexFile.open(m_indexFilename, ios::in | ios::binary);
 		}
-		else if (m_useIndexFileMap && (!m_wordMap.empty() ) )
+		else if (!m_useIndexFileMap && (!m_wordMap.empty() ) )
 		{
 			// If using the word map from the index file, free up the memory
 			m_wordMap.clear();
@@ -626,11 +674,11 @@ namespace dirsearch {
 			resultWordCountMap.push_back(wordResultData);
 		}
 
-		DisplaySearchResults(resultWordCountMap);
+		ProcessIndedFileResults(resultWordCountMap);
 	}
 
 	
-	void DirSearch::DisplaySearchResults( ResultListT& resultWordCountMap)
+	void DirSearch::ProcessIndedFileResults( ResultListT& resultWordCountMap)
 	{
 		ResultFileDataT firstResult;
 		ResultFilenameDataT finalResultData;
@@ -674,6 +722,13 @@ namespace dirsearch {
 					" , word count = " << totalWordCount << endl;
 		}
 
+		DisplaySearchResults(finalResultData);
+
+	}
+
+
+	void DirSearch::DisplaySearchResults(const ResultFilenameDataT& finalResultData)
+	{
 		// Sort the results
 		// Modified from: http://stackoverflow.com/a/19528891
 		std::vector<pair<string, unsigned long>> pairs;
@@ -708,6 +763,7 @@ namespace dirsearch {
 				}
 			}
 		}
+
 	}
 
 
@@ -773,7 +829,7 @@ namespace dirsearch {
 	};
 
 
-	void DirSearch::CreateIndexForFile(const char* const fileName, short fileArrayIndex)
+	void DirSearch::ReadAndSearchFile(const char* const fileName, short fileArrayIndex)
 	{
 		try
 		{
@@ -782,6 +838,8 @@ namespace dirsearch {
 			unsigned int fileSize = static_cast<unsigned int>(inputFile.tellg());
 			inputFile.seekg(0, ios::beg);
 			m_fileWordCount = 0;
+			m_fileTotalSearchTermsFound = 0;
+			m_allKeywordsFoundInFile.clear();
 
 
 			if (fileSize > m_maxFileSize)
@@ -932,26 +990,44 @@ namespace dirsearch {
 				this->InsertWord();
 			}
 
-			if (m_indexConstructionState == CountNumFilesEachWordIsIn)
+			if (m_createIndexFile)
 			{
-				for (auto thisWord = m_tempExistingWordMap.begin();
-				thisWord != m_tempExistingWordMap.end(); ++thisWord)
+				if (m_indexConstructionState == CountNumFilesEachWordIsIn)
 				{
-					const string& word = (*thisWord).first;
-					m_wordMap[word].shortVal++;
+					for (auto thisWord = m_tempExistingWordMap.begin();
+					thisWord != m_tempExistingWordMap.end(); ++thisWord)
+					{
+						const string& word = (*thisWord).first;
+						m_wordMap[word].shortVal++;
+					}
+				}
+				else  // i.e. (m_indexConstructionState == WordCounting)
+				{
+					// Now transfer the "m_tempExistingWordMap" onto the "m_wordMap"
+					ConstructIndexFile(fileArrayIndex);
 				}
 			}
-			else  // i.e. (m_indexConstructionState == WordCounting)
+			else
 			{
-				// Now transfer the "m_tempExistingWordMap" onto the "m_wordMap"
-				ConstructIndexFile(fileArrayIndex);
+				for (auto thisWord = m_convertSearchString.begin();
+				thisWord != m_convertSearchString.end(); ++thisWord)
+				{
+					if (m_allKeywordsFoundInFile.find(*thisWord) ==
+						m_allKeywordsFoundInFile.end())
+					{
+						return;
+					}
+				}
+
+				// If all words were found
+				m_resultMap[fileArrayIndex] = m_fileTotalSearchTermsFound;
 			}
 		}
 		catch ( std::exception e)
 		{
 			if (DEBUG_MODE || ENABLE_ERROR_MSG)
 			{
-				cerr << "DirSearch::CreateIndexForFile threw following exception! " << e.what() << endl;
+				cerr << "DirSearch::ReadAndSearchFile threw following exception! " << e.what() << endl;
 				assert(!DEBUG_MODE);
 			}
 		}
@@ -959,7 +1035,7 @@ namespace dirsearch {
 		{
 			if (DEBUG_MODE || ENABLE_ERROR_MSG)
 			{
-				cerr << "DirSearch::CreateIndexForFile threw unknown exception! " << endl;
+				cerr << "DirSearch::ReadAndSearchFile threw unknown exception! " << endl;
 				assert(!DEBUG_MODE);
 			}
 		}
@@ -1021,32 +1097,46 @@ namespace dirsearch {
 			return;
 		}
 
-		//else if (m_currentWordLength < m_wordMapKeyMaxLength)
-		//{
-			// Only need to insert the "wholeWord" (i.e. the word can be empty)
-			// Store a map of currently inserted words and init the bitpattern variables for the new words 
-			// for this file
-			//WordMapT
+
+
+
 		
 		// First pass is simply counting how many files each word is in
-		if (m_indexConstructionState == CountNumFilesEachWordIsIn)
+		if (m_createIndexFile)
 		{
-			if (m_tempExistingWordMap.find(m_wholeWord) == m_tempExistingWordMap.end())
+			if (m_indexConstructionState == CountNumFilesEachWordIsIn)
 			{
-				InsertIntoWordMap(m_wholeWord, 0, 1);
-				m_tempExistingWordMap[m_wholeWord] = true;// m_initPitPatternList; // TODO for when I use bit pattern
+				if (m_tempExistingWordMap.find(m_wholeWord) == m_tempExistingWordMap.end())
+				{
+					InsertIntoWordMap(m_wholeWord, 0, 1);
+					m_tempExistingWordMap[m_wholeWord] = true;// m_initPitPatternList; // TODO for when I use bit pattern
+				}
 			}
-			//else if (DEBUG_MODE)
-			//{
-			//	InsertIntoWordMap(m_wholeWord, 0, 1);
-			//}
+			// Then second pass is counting how many time a given word appears in a given file
+			else
+			{
+				m_tempExistingWordMap[m_wholeWord]++;
+			}
 		}
-		// Then second pass is counting how many time a given word appears in a given file
 		else
 		{
-			m_tempExistingWordMap[m_wholeWord]++;
+			// If not contructing the index file, then just search each term now
+			for (auto thisWord = m_convertSearchString.begin();
+			thisWord != m_convertSearchString.end(); ++thisWord)
+			{
+				if (m_wholeWord == *thisWord)
+				{
+					m_fileTotalSearchTermsFound++;
+					m_allKeywordsFoundInFile[*thisWord] = true;
+				}
+				else if(m_wholeWord.find(*thisWord) != string::npos )
+				{
+					// TODO do substring search
+					m_fileTotalSearchTermsFound++;
+					m_allKeywordsFoundInFile[*thisWord] = true;
+				}
+			}
 		}
-
 	}
 
 

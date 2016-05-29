@@ -243,22 +243,23 @@ namespace dirsearch
 		typedef std::list<ResultFileDataT> ResultListT;
 		typedef std::unordered_map<std::string, MapData> WordDataMapT;
 		typedef std::unordered_map<std::string, unsigned int > ExistingWordMapT;
+		typedef std::unordered_map<std::string, bool > AllKeywordsFoundMapT;
 		typedef std::unordered_map<std::string, WordListT > SearchWordMapT;
 		typedef char* FilenameArrayT[2000];
 
 		DirSearch(const std::string& targetDirectory, const std::string& indexFilename, 
-			const unsigned int indexPercentage);
+			const std::vector<std::string>& searchStrings, const unsigned int indexPercentage);
 
 		~DirSearch();
 
-		void Search(const std::vector<std::string>& searchStrings);
+		void Search();
 
 
 
 	private:
 		// private functions
 		void InsertWord();
-		void CreateIndexForFile(const char* const fileName, short fileArrayIndex);
+		void ReadAndSearchFile(const char* const fileName, short fileArrayIndex);
 
 		void ReadAllFiles();
 		void InsertIntoWordMap(const std::string & prefix, const short fileArrayIndex, const int fileWordCount);
@@ -269,10 +270,12 @@ namespace dirsearch
 		bool GetNextMapStringFromIndexFile(const char* & movingPointerToBufferData);
 
 		void SearchWordsFromIndexFile(const WordDataMapT& searchTermDataMap);
-		void DisplaySearchResults( ResultListT& resultWordCountMap);
+		void ProcessIndedFileResults( ResultListT& resultWordCountMap);
+		void DisplaySearchResults(const ResultFilenameDataT& finalResultData);
 
 	private:
 		// Private data members
+		std::locale m_toLowerLocale;
 		std::fstream m_indexFile;
 		unsigned int m_indexFilePosition;
 		WordDataMapT m_wordMap;
@@ -296,10 +299,13 @@ namespace dirsearch
 		IndexConstructionState m_indexConstructionState;
 		std::string m_nextMapStringFromIndexFile;
 		std::vector<std::string> m_filesInDir;
+		const std::vector<std::string> m_convertSearchString;
+		ResultFileDataT m_resultMap;
+		AllKeywordsFoundMapT m_allKeywordsFoundInFile;
+		unsigned long m_fileTotalSearchTermsFound = 0;
 		
-		// Used by the CreateIndexForFile() and InsertWord() functions
+		// Used by the ReadAndSearchFile() and InsertWord() functions
 		std::string m_wholeWord;
-		std::locale m_toLowerLocale;
 		unsigned int m_currentWordLength;
 		unsigned int m_fileWordCount;
 		unsigned int m_wordBlockSize = 256;

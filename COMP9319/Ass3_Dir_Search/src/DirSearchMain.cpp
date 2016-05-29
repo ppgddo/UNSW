@@ -40,6 +40,11 @@ int main(int argc, char ** argv)
 				cmdIterator++;
 				cmdIterator++;
 			}
+			else
+			{
+				cmdIterator++;
+			}
+
 			
 			for (; cmdIterator != cmdStrings.end(); ++cmdIterator)
 			{
@@ -55,8 +60,8 @@ int main(int argc, char ** argv)
 			}
 		}
 
-		DirSearch dirsearch(cmdStrings[0], cmdStrings[1], indexPercentage);
-		dirsearch.Search(searchStrings);
+		DirSearch dirsearch(cmdStrings[0], cmdStrings[1], searchStrings, indexPercentage);
+		dirsearch.Search();
 	}
 	catch (std::exception e)
 	{
