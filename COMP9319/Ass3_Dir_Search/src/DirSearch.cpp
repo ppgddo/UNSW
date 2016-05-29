@@ -125,7 +125,7 @@ namespace dirsearch {
 	DirSearch::DirSearch(const std::string& targetDirectory, const std::string& indexFilename, 
 		const unsigned int indexPercentage
 		)
-		: m_dirFullPath(targetDirectory)
+		: m_dirFullPath(targetDirectory + "/" )
 		, m_indexFilename(indexFilename)
 		, m_indexPercentage(indexPercentage)
 		, m_dirsearchDataSize(-1)	// TODO where should this be cacluated?
@@ -141,9 +141,11 @@ namespace dirsearch {
 			m_useIndexFile = true;
 		}
 
-		m_useIndexFile = true;	// For now I'm hardcoding this mode
+		m_useIndexFile = true;		// For now I'm hardcoding this mode
 		if (m_useIndexFile)
 		{
+			m_useIndexFileMap = true;	// For now I'm hardcoding this mode, but it should only be set if m_useIndexFile is true
+
 			m_indexFile.open(m_indexFilename, ios::in | ios::binary);
 
 			m_indexFile.seekg(0, ios::end);
@@ -154,7 +156,7 @@ namespace dirsearch {
 			{
 				// If the file already exists, then we can assume it's the correct one and use it
 				// This is one of the contraints we were given
-				assert(m_indexFileSize <= indexPercentage*m_dirsearchDataSize);
+				assert(!DEBUG_MODE || (m_indexFileSize <= indexPercentage*m_dirsearchDataSize) );
 			}
 			else
 			{
@@ -189,8 +191,8 @@ namespace dirsearch {
 				{
 					std::string filenameString = string(epdf->d_name);
 					m_filesInDir.push_back(filenameString);
-					//if (DEBUG_MODE)
-					std::cout << epdf->d_name << std::endl;
+					if (DEBUG_MODE)
+						std::cout << epdf->d_name << std::endl;
 				}
 			}
 
@@ -226,11 +228,11 @@ namespace dirsearch {
 		DWORD dwError = 0;
 
 		//m_dirFullPath =
-			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/debug_data/";
-			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1/";
-			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/man/";
-			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/man_debug/";
-			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/booknmail/";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/debug_data";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/legal1";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/man";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/man_debug";
+			//"D:/Dropbox/TimDocs/NonGit/Training/UNSW/Courses/2016/COMP9319-Web_Compress/Ass/Ass3/Test_Data/booknmail";
 
 		TCHAR *param = new TCHAR[m_dirFullPath.size() + 1];
 		param[m_dirFullPath.size()] = 0;
@@ -245,7 +247,7 @@ namespace dirsearch {
 
 		hFind = FindFirstFile(szDir, &ffd);
 
-		if (INVALID_HANDLE_VALUE == hFind)
+		if (DEBUG_MODE && (INVALID_HANDLE_VALUE == hFind) )
 		{
 			cerr << (TEXT("FindFirstFile"));
 		}
@@ -255,13 +257,15 @@ namespace dirsearch {
 		{
 			if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 			{
-				_tprintf(TEXT("  %s   <DIR>\n"), ffd.cFileName);
+				if(DEBUG_MODE)
+					_tprintf(TEXT("  %s   <DIR>\n"), ffd.cFileName);
 			}
 			else
 			{
 				filesize.LowPart = ffd.nFileSizeLow;
 				filesize.HighPart = ffd.nFileSizeHigh;
-				_tprintf(TEXT("  %s   %ld bytes\n"), ffd.cFileName, filesize.QuadPart);
+				if (DEBUG_MODE)
+					_tprintf(TEXT("  %s   %ld bytes\n"), ffd.cFileName, filesize.QuadPart);
 
 				//char* fileString = CW2A(L"LPWSTR STRING");
 				//CA2T szr(ffd.cFileName);
@@ -275,7 +279,7 @@ namespace dirsearch {
 		} while (FindNextFile(hFind, &ffd) != 0);
 
 		dwError = GetLastError();
-		if (dwError != ERROR_NO_MORE_FILES)
+		if ( (DEBUG_MODE) && (dwError != ERROR_NO_MORE_FILES) )
 		{
 			cerr << (TEXT("FindFirstFile"));
 		}
@@ -405,12 +409,12 @@ namespace dirsearch {
 					if (DISPLAY_TODO)
 					{
 						cout << "Need to read the index file in blocks!" << endl;
-						if (m_readIndexBufferSize < fileSize)
-							m_readIndexBufferSize = fileSize;
 					}
 
+					if (m_readIndexBufferSize < fileSize)
+						m_readIndexBufferSize = fileSize;
 
-					assert(DEBUG_MODE);
+					//assert(!DEBUG_MODE);
 					//todo need set seekg to where the file is is up to!!!!
 
 					indexedFileNotRead = false;
@@ -438,7 +442,7 @@ namespace dirsearch {
 						searchTermData.intVal = startPosition;
 						searchTermData.shortVal = numberOfFileData;
 
-						assert(searchTermDataMap.find(*thisWord) == searchTermDataMap.end());
+						assert( !DEBUG_MODE || (searchTermDataMap.find(*thisWord) == searchTermDataMap.end()) );
 						searchTermDataMap[*thisWord] = searchTermData;
 					}
 					else if (m_nextMapStringFromIndexFile.find(*thisWord) != std::string::npos)
@@ -464,8 +468,8 @@ namespace dirsearch {
 				cout << "TODO: Not implemented yet! When index file is created in this instance of app, " <<
 					"I just need to read off the map!" << endl;
 			}
-			else
-				assert(0);	// Not implemented yet
+			//else
+			//	assert(!DEBUG_MODE);	// Not implemented yet
 
 
 			for (auto thisWord = convertSearchString.begin();
@@ -538,8 +542,8 @@ namespace dirsearch {
 
 	void DirSearch::SearchWordsFromIndexFile(const WordDataMapT& searchTermDataMap)
 	{
-		WordDataMapT resultWordCountMap;
-		assert(m_readBuffer != nullptr);
+		ResultListT resultWordCountMap;
+		assert(!DEBUG_MODE || (m_readBuffer != nullptr) );
 
 		if (m_createIndexFile)
 		{
@@ -548,6 +552,11 @@ namespace dirsearch {
 			m_indexFile.close();
 			m_indexFile.open(m_indexFilename, ios::in | ios::binary);
 		}
+		else if (m_useIndexFileMap && (!m_wordMap.empty() ) )
+		{
+			// If using the word map from the index file, free up the memory
+			m_wordMap.clear();
+		}
 
 		// Iterate throught the "temp" map and count the data
 		// Only search files that ALL search terms occur in
@@ -555,6 +564,8 @@ namespace dirsearch {
 		for (auto thisWord = searchTermDataMap.begin();
 		thisWord != searchTermDataMap.end(); ++thisWord)
 		{
+			ResultFileDataT wordResultData;
+
 			const string& word = (*thisWord).first;
 			if (DEBUG_MODE)
 				cout << "Searching for search term: " << (*thisWord).first << endl << endl;
@@ -567,17 +578,10 @@ namespace dirsearch {
 			//int debugVal = m_indexFile.tellg();
 			m_indexFile.seekg(startPostion);
 			const unsigned int numberOfBytesForFileData = numberOfFileData * SIZE_OF_FILE_DATA;
-			assert( (m_readBufferSize >= numberOfBytesForFileData) &&
-				(m_readIndexBufferSize >= numberOfBytesForFileData) );
+			assert(!DEBUG_MODE || ( (m_readBufferSize >= numberOfBytesForFileData) &&
+				(m_readIndexBufferSize >= numberOfBytesForFileData) ) );
 			m_indexFile.read(m_readBuffer, numberOfBytesForFileData);
 			const char* movingPointerToBufferData = m_readBuffer;
-
-
-			// Prepare a map entry for this search term.
-			MapData searchResultData;
-			searchResultData.intVal = 0;
-			searchResultData.shortVal = 0;
-			resultWordCountMap[word] = searchResultData;
 			
 			for (unsigned int i = 0; i < numberOfFileData; i++)
 			{
@@ -594,8 +598,16 @@ namespace dirsearch {
 				// Add this word count and file index to a map of the "word"
 				// Note that the "substring search" might have multiple "word counts"
 				// for a given file (i.e. for all the different substrings that match)
-				resultWordCountMap[word].shortVal = fileIndex;
-				resultWordCountMap[word].intVal = wordCount;
+				if (wordResultData.find(fileIndex) == wordResultData.end())
+				{
+					wordResultData[fileIndex] = wordCount;
+				}
+				else
+				{
+					// This is mainly for "substring search" that could have many different
+					// counts for each file
+					wordResultData[fileIndex] += wordCount;
+				}
 
 				if (DEBUG_MODE ) //&& wordCount)
 				{
@@ -610,15 +622,92 @@ namespace dirsearch {
 				cout << endl << (*thisWord).first << " total count in all files = " 
 					<< debugCountWords << endl << endl;
 			}
+
+			resultWordCountMap.push_back(wordResultData);
 		}
 
 		DisplaySearchResults(resultWordCountMap);
 	}
 
-
-	void DirSearch::DisplaySearchResults(const WordDataMapT& resultWordCountMap)
+	
+	void DirSearch::DisplaySearchResults( ResultListT& resultWordCountMap)
 	{
+		ResultFileDataT firstResult;
+		ResultFilenameDataT finalResultData;
 
+		if (!resultWordCountMap.empty())
+		{
+			firstResult = resultWordCountMap.front();
+			resultWordCountMap.pop_front();
+		}
+
+		for (auto fileDataInFirstResult = firstResult.begin();
+		fileDataInFirstResult != firstResult.end(); ++fileDataInFirstResult)
+		{
+			const unsigned short& fileIndex = (*fileDataInFirstResult).first;
+			bool allSearchTermsHaveThisFile = true;
+			unsigned int totalWordCount = (*fileDataInFirstResult).second;
+
+			for (auto otherFileData = resultWordCountMap.begin();
+			otherFileData != resultWordCountMap.end(); ++otherFileData)
+			{
+				if (otherFileData->find(fileIndex) == otherFileData->end())
+				{
+					allSearchTermsHaveThisFile = false;
+					continue;
+				}
+
+				totalWordCount += (*otherFileData)[fileIndex];
+			}
+
+			if (!allSearchTermsHaveThisFile)
+			{
+				continue;
+			}
+
+			const string& fileName = m_filesInDir.at(fileIndex);
+			assert(!DEBUG_MODE || (finalResultData.find(fileName) == finalResultData.end()));
+			finalResultData[fileName] = totalWordCount;
+
+			if (DEBUG_MODE)
+				cout << "results for: " << fileName << " , index = " << fileIndex <<
+					" , word count = " << totalWordCount << endl;
+		}
+
+		// Sort the results
+		// Modified from: http://stackoverflow.com/a/19528891
+		std::vector<pair<string, unsigned long>> pairs;
+		for (auto itr = finalResultData.begin(); itr != finalResultData.end(); ++itr)
+			pairs.push_back(*itr);
+
+		sort(pairs.begin(), pairs.end(), [=](pair<string, unsigned long>& a, pair<string, unsigned long>& b)
+		{
+			if (a.second == b.second)
+				return a.first < b.first;
+			else
+				return a.second > b.second;
+		}
+		);
+
+		if (pairs.empty())
+		{
+			cout << endl;
+		}
+		else
+		{
+			for (auto itr = pairs.begin(); itr != pairs.end(); ++itr)
+			{
+				if (DEBUG_MODE)
+				{
+					cout << "results file index = " << (*itr).first <<
+						", word count = " << (*itr).second << endl;
+				}
+				else
+				{
+					cout << (*itr).first << endl;
+				}
+			}
+		}
 	}
 
 
@@ -863,7 +952,7 @@ namespace dirsearch {
 			if (DEBUG_MODE || ENABLE_ERROR_MSG)
 			{
 				cerr << "DirSearch::CreateIndexForFile threw following exception! " << e.what() << endl;
-				assert(0);
+				assert(!DEBUG_MODE);
 			}
 		}
 		catch (...)
@@ -871,7 +960,7 @@ namespace dirsearch {
 			if (DEBUG_MODE || ENABLE_ERROR_MSG)
 			{
 				cerr << "DirSearch::CreateIndexForFile threw unknown exception! " << endl;
-				assert(0);
+				assert(!DEBUG_MODE);
 			}
 		}
 	}
@@ -880,8 +969,8 @@ namespace dirsearch {
 	void DirSearch::InsertIntoWordMap(const std::string & wholeWord, 
 		const short fileArrayIndex, const int fileWordCount)
 	{
-		assert( (m_currentWordLength >= MIN_SEARCH_WORD_SIZE) &&
-			(m_currentWordLength <= MAX_SEARCH_WORD_SIZE) );
+		assert(!DEBUG_MODE || ( (m_currentWordLength >= MIN_SEARCH_WORD_SIZE) &&
+			(m_currentWordLength <= MAX_SEARCH_WORD_SIZE) ) );
 
 		if (m_wordMap.find(wholeWord) == m_wordMap.end())
 		{
@@ -1008,6 +1097,12 @@ namespace dirsearch {
 					//m_indexFile.write(word.c_str(), word.size());
 					writeBuffer.append(word);
 					m_indexFilePosition += word.size();
+
+					//if (DEBUG_MODE && (word == "aPle,")) // && (fileArrayIndex == 5)
+					//{
+					//	cout << endl << "Index for word aPle in file index " << fileArrayIndex << " = " << indexForNextWord <<
+					//		" , with word count = " << (*thisWord).second.shortVal << endl << endl;
+					//}
 					
 					// Calc the file data "start index" for this word
 					const char*const fileDataStartIndex = reinterpret_cast<const char*const>(&indexForNextWord);

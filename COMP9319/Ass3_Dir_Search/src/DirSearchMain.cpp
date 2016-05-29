@@ -16,7 +16,7 @@ using namespace dirsearch;
 using namespace dirsearch::helpers;
 
 
-static const bool DEBUG_MAIN_MODE = true;
+static const bool DEBUG_MAIN_MODE = false;
 
 
 int main(int argc, char ** argv)
@@ -55,11 +55,8 @@ int main(int argc, char ** argv)
 			}
 		}
 
-
-		// No need to pass the "
 		DirSearch dirsearch(cmdStrings[0], cmdStrings[1], indexPercentage);
 		dirsearch.Search(searchStrings);
-
 	}
 	catch (std::exception e)
 	{
@@ -77,6 +74,9 @@ int main(int argc, char ** argv)
 			assert(0);
 		}
 	}
+
+	if (DEBUG_MAIN_MODE)
+		cout << endl << endl << "Warning, DEBUG_MAIN_MODE is on. Turn off before submitting code" << endl << endl;
 
 	return 0;
 }

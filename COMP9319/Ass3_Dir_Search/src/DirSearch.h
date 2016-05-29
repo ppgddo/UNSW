@@ -238,6 +238,9 @@ namespace dirsearch
 		static const unsigned int MAX_SEARCH_WORD_SIZE = 256;
 
 		typedef std::list<WordFileData> WordListT;
+		typedef std::unordered_map<unsigned short, unsigned long> ResultFileDataT;
+		typedef std::unordered_map<std::string, unsigned long> ResultFilenameDataT;
+		typedef std::list<ResultFileDataT> ResultListT;
 		typedef std::unordered_map<std::string, MapData> WordDataMapT;
 		typedef std::unordered_map<std::string, unsigned int > ExistingWordMapT;
 		typedef std::unordered_map<std::string, WordListT > SearchWordMapT;
@@ -266,7 +269,7 @@ namespace dirsearch
 		bool GetNextMapStringFromIndexFile(const char* & movingPointerToBufferData);
 
 		void SearchWordsFromIndexFile(const WordDataMapT& searchTermDataMap);
-		void DisplaySearchResults(const WordDataMapT& resultWordCountMap);
+		void DisplaySearchResults( ResultListT& resultWordCountMap);
 
 	private:
 		// Private data members
@@ -277,6 +280,7 @@ namespace dirsearch
 		unsigned int m_wordMapSize = 0;
 		unsigned int m_indexFileSize;
 		bool m_useIndexFile = false;
+		bool m_useIndexFileMap = false;
 		bool m_createIndexFile = false;
 		const unsigned int m_indexPercentage = 20;
 		const std::string m_dirFullPath;

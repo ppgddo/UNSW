@@ -5,7 +5,7 @@ CC=g++
 # options I'll pass to the compiler.
 CFLAGS=-c -m32 -Wall -std=c++11 
 
-all: dirsearchsearch
+all: a3search
 
 HelperFunctions.o: HelperFunctions.cpp
 	$(CC) $(CFLAGS) HelperFunctions.cpp
@@ -16,9 +16,9 @@ DirSearchMain.o: DirSearchMain.cpp
 DirSearch.o: DirSearch.cpp
 	$(CC) $(CFLAGS) DirSearch.cpp
        
-dirsearchsearch: DirSearchMain.o HelperFunctions.o DirSearch.o
-	$(CC) DirSearchMain.o HelperFunctions.o DirSearch.o -o dirsearchsearch
+a3search: DirSearchMain.o HelperFunctions.o DirSearch.o
+	$(CC) DirSearchMain.o HelperFunctions.o DirSearch.o -o a3search
 
 clean:
-	rm *o dirsearchsearch
+	rm *o a3search
 
