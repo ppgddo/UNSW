@@ -301,7 +301,7 @@ namespace dirsearch
 		const unsigned int m_dirsearchDataSize;
 		unsigned int m_maxFileSize = 0;
 		char* m_readBuffer = nullptr;
-		unsigned int m_readBufferSize = 1000000;		// TODO will need to decrease this??
+		unsigned int m_readBufferSize = 4000000;		// TODO will need to decrease this??
 		unsigned int m_readIndexBufferSize = 6000000;	// Only used when the "m_wordMap" isn't used, so can be large
 		//unsigned char m_wordMapKeyMaxLength = MAX_SEARCH_WORD_SIZE - 1;			// This is the default unless the m_useIndexFile is set
 		//int m_maxExpectedWordSize = 256;	// This will increase if a larger word is discovered

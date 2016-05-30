@@ -179,7 +179,7 @@ namespace dirsearch {
 			// TODO remove this hardcoded test valeus
 			m_useIndexFile = false;		// For now I'm hardcoding this mode
 			m_createIndexFile = false;
-			m_indexFile.open(m_indexFilename, ios::in | ios::binary);
+			//m_indexFile.open(m_indexFilename, ios::in | ios::binary);
 		}
 		
 		
@@ -858,7 +858,7 @@ namespace dirsearch {
 		{
 			std::ifstream inputFile(fileName);
 			inputFile.seekg(0, ios::end);
-			unsigned int fileSize = static_cast<unsigned int>(inputFile.tellg());
+			const unsigned int fileSize = static_cast<unsigned int>(inputFile.tellg());
 			inputFile.seekg(0, ios::beg);
 			m_fileWordCount = 0;
 			m_fileTotalSearchTermsFound = 0;
@@ -878,18 +878,21 @@ namespace dirsearch {
 				m_maxFileSize = fileSize;
 			}
 
-			if (fileSize > m_readBufferSize)
-			{
-				// Will need to increase the size of the read buffer
-				if (m_readBuffer)
-				{
-					delete[] m_readBuffer;
-					m_readBuffer = nullptr;
-				}
-				m_readBufferSize = fileSize;
-				m_readBuffer = new char[m_readBufferSize + 1];
-			}
-			else if (m_readBuffer == nullptr)
+			//bool needMultipleReads = false;
+			//if (fileSize > m_readBufferSize)
+			//{
+			//	needMultipleReads = true;
+			//	// Will need to increase the size of the read buffer
+			//	if (m_readBuffer)
+			//	{
+			//		delete[] m_readBuffer;
+			//		m_readBuffer = nullptr;
+			//	}
+			//	m_readBufferSize = fileSize;
+			//	m_readBuffer = new char[m_readBufferSize + 1];
+			//}
+			//else 
+			if (m_readBuffer == nullptr)
 			{
 				m_readBuffer = new char[m_readBufferSize + 1];
 			}
@@ -908,144 +911,160 @@ namespace dirsearch {
 			m_onlySpacesBetweenWords = true;
 			m_skippedLongOrShortWord = false;
 
-			// TODO to read in smaller chunks, I just need to put the code below
-			// in a for loop for each chunck, so I won't need to change the logic
-			// (i.e. the code below won't notice the difference).
-			inputFile.read(m_readBuffer, fileSize);
 
-			if (DISPLAY_TODO)
+			unsigned int bytesRemaining = fileSize;
+			unsigned int readBlockSize = fileSize;
+			unsigned int startPosition = 0;
+			unsigned int bytesRead = 0;
+
+
+			while (bytesRemaining > 0)
 			{
-				static bool oneShotFlag = false;
-				if (!oneShotFlag)
+				if (bytesRemaining > m_readBufferSize)
 				{
-					cout << "TODO: Read buffer files in smaller blocks!!!" << endl;
-					oneShotFlag = true;
-				}
-			}
-
-			if (!inputFile)
-			{
-				if (DEBUG_MODE || ENABLE_ERROR_MSG)
-				{
-					cerr << "Could not open input file: " << fileName << endl;
-					//" because following error occured: " << strerror(errno) << endl;
-
-					throw std::runtime_error("Couldn't open file mentioned above");
-				}
-						
-				return;
-			}
-			else if (DEBUG_MODE)
-			{
-				cout << "Successfully Opened file: " << fileName << " with index = " <<
-					fileArrayIndex << ", of size: "	<< fileSize << endl;
-			}
-
-
-			//if (DEBUG_MODE && (fileArrayIndex == 1744))
-			//{
-			//	int dummy = 0;
-			//	dummy += dummy + 1;
-			//}
-
-
-
-
-			for (unsigned int i = 0; i < fileSize; i++)
-			{
-				// TODO The "m_bwtLastColumn" is a "fixed" sized unsigned char array and use this
-				// for smaller files!
-				nextChar = m_readBuffer[i];
-
-				if ( m_currentWordLength >(MAX_SEARCH_WORD_SIZE) )
-				{
-					searchMode = traversingOversizedWord;
-				}
-
-				// If this is an alpha value and not traversing oversized word
-				
-				if( (nextChar > 64) && (isalpha(nextChar) != 0) )
-				{
-					// If it is alpha, only process it if it isn't an oversized word
-					if (searchMode != traversingOversizedWord)
-					{
-						convertedChar = std::tolower(nextChar, m_toLowerLocale);
-						if (convertedChar == previousConvertedChar)
-						{
-							// I will encode "double letters as their capital equivalent
-							convertedChar = std::toupper(convertedChar, m_toLowerLocale);
-							compressDoubleLetter = true;
-							previousConvertedChar = 0;
-						}
-						else
-						{
-							previousConvertedChar = convertedChar;
-						}
-
-						searchMode = readingAlphaString;
-						if (compressDoubleLetter)
-							m_wholeWord.pop_back();
-
-						compressDoubleLetter = false;
-						m_wholeWord.push_back(convertedChar);
-						m_currentWordLength++;
-					}
+					bytesRemaining -= m_readBufferSize;
+					readBlockSize = m_readBufferSize;
 				}
 				else
 				{
-					// If not an alpha value
+					readBlockSize = bytesRemaining;
+					bytesRemaining = 0;
+				}
 
-					if(searchMode == readingAlphaString)
+				// TODO to read in smaller chunks, I just need to put the code below
+				// in a for loop for each chunck, so I won't need to change the logic
+				// (i.e. the code below won't notice the difference).
+				inputFile.seekg(startPosition);
+				inputFile.read(m_readBuffer, readBlockSize);
+				startPosition += readBlockSize;
+
+				if (DISPLAY_TODO)
+				{
+					static bool oneShotFlag = false;
+					if (!oneShotFlag)
 					{
-						// Put this in a function and call at end too
-						this->InsertWord();
-
-						//if (DEBUG_MODE && (fileArrayIndex == 1744) && (m_wholeWord == "company"))
-						//{
-						//	int dummy = 0;
-						//	dummy += dummy + 1;
-						//}
-						
-						if (nextChar == ' ')
-							m_onlySpacesBetweenWords = true;
-						else
-							m_onlySpacesBetweenWords = false;
+						cout << "TODO: Read buffer files in smaller blocks!!!" << endl;
+						oneShotFlag = true;
 					}
-					
-					if (searchMode != traversingNonAlpha)
+				}
+
+				if (!inputFile)
+				{
+					if (DEBUG_MODE || ENABLE_ERROR_MSG)
 					{
-						startNewWord = true;
-						arrayIndexBase = 0;
-						m_wholeWord.clear();
-						m_currentWordLength = 0;
-						searchMode = traversingNonAlpha;
-						previousConvertedChar = 0;
-						compressDoubleLetter = false;
+						cerr << "Could not open input file: " << fileName << endl;
+						//" because following error occured: " << strerror(errno) << endl;
+
+						throw std::runtime_error("Couldn't open file mentioned above");
+					}
+
+					return;
+				}
+				else if (DEBUG_MODE)
+				{
+					cout << "Successfully Opened file: " << fileName << " with index = " <<
+						fileArrayIndex << ", of size: " << fileSize << endl;
+				}
+
+
+				//if (DEBUG_MODE && (fileArrayIndex == 1744))
+				//{
+				//	int dummy = 0;
+				//	dummy += dummy + 1;
+				//}
+
+
+
+
+				for (unsigned int i = 0; i < readBlockSize; i++)
+				{
+					// TODO The "m_bwtLastColumn" is a "fixed" sized unsigned char array and use this
+					// for smaller files!
+					nextChar = m_readBuffer[i];
+
+					if (m_currentWordLength > (MAX_SEARCH_WORD_SIZE))
+					{
+						searchMode = traversingOversizedWord;
+					}
+
+					// If this is an alpha value and not traversing oversized word
+
+					if ((nextChar > 64) && (isalpha(nextChar) != 0))
+					{
+						// If it is alpha, only process it if it isn't an oversized word
+						if (searchMode != traversingOversizedWord)
+						{
+							convertedChar = std::tolower(nextChar, m_toLowerLocale);
+							if (convertedChar == previousConvertedChar)
+							{
+								// I will encode "double letters as their capital equivalent
+								convertedChar = std::toupper(convertedChar, m_toLowerLocale);
+								compressDoubleLetter = true;
+								previousConvertedChar = 0;
+							}
+							else
+							{
+								previousConvertedChar = convertedChar;
+							}
+
+							searchMode = readingAlphaString;
+							if (compressDoubleLetter)
+								m_wholeWord.pop_back();
+
+							compressDoubleLetter = false;
+							m_wholeWord.push_back(convertedChar);
+							m_currentWordLength++;
+						}
 					}
 					else
 					{
-						m_onlySpacesBetweenWords = false;
+						// If not an alpha value
+
+						if (searchMode == readingAlphaString)
+						{
+							// Put this in a function and call at end too
+							this->InsertWord();
+
+							//if (DEBUG_MODE && (fileArrayIndex == 1744) && (m_wholeWord == "company"))
+							//{
+							//	int dummy = 0;
+							//	dummy += dummy + 1;
+							//}
+
+							if (nextChar == ' ')
+								m_onlySpacesBetweenWords = true;
+							else
+								m_onlySpacesBetweenWords = false;
+						}
+
+						if (searchMode != traversingNonAlpha)
+						{
+							startNewWord = true;
+							arrayIndexBase = 0;
+							m_wholeWord.clear();
+							m_currentWordLength = 0;
+							searchMode = traversingNonAlpha;
+							previousConvertedChar = 0;
+							compressDoubleLetter = false;
+						}
+						else
+						{
+							m_onlySpacesBetweenWords = false;
+						}
+
+						//if (m_doPhraseSearch && m_onlySpacesBetweenWords && (nextChar != ' ') )
+						//	m_onlySpacesBetweenWords = false;
 					}
-					
-					//if (m_doPhraseSearch && m_onlySpacesBetweenWords && (nextChar != ' ') )
-					//	m_onlySpacesBetweenWords = false;
-				}
-			}
-
-
-
-
-
+				} // End for loop
+			} // end while loop
 
 
 			// IMPORTANT!!!!
-			// When I implement the "block reading" mode, the code below should be 
+			// When I implement the "block reading" mode, the tidy up code below should be 
 			// executed after all blocks from the file is read!
 
-
-
 			// Tidy up the last word (if it ends with a alpha char)
-			if (searchMode == readingAlphaString) 
+			if (searchMode == readingAlphaString)
 			{
 				// Put this in a function and call at end too
 				this->InsertWord();
