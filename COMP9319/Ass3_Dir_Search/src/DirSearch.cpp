@@ -141,11 +141,6 @@ namespace dirsearch {
 
 		//delete[] m_prefixArray;
 
-		if (DISPLAY_TODO)
-		{
-			cout << "TODO: pass in the directory file path as an INPUT ARG!!!" << endl;
-			cout << "Map size = " << m_wordMapSize << endl;
-		}
 	}
 
 
@@ -393,12 +388,6 @@ namespace dirsearch {
 
 	void DirSearch::Search()
 	{
-		if (DISPLAY_TODO)
-		{
-			cout << "TODO: need to check for spaces in the searchStrings for phrase search" << endl;
-			cout << "TODO: Read the index file in smaller blocks!" << endl;
-		}
-
 		if (DEBUG_MODE)
 		{
 			cout << "Searching for terms..." << endl << endl;
@@ -423,15 +412,6 @@ namespace dirsearch {
 			}
 
 
-			if (DISPLAY_TODO)
-			{
-				static bool oneShotFlag = false;
-				if (!oneShotFlag)
-				{
-					cout << "TODO: Read buffer files in smaller blocks!!!" << endl;
-					oneShotFlag = true;
-				}
-			}
 
 			if (!m_indexFile)
 			{
@@ -468,10 +448,6 @@ namespace dirsearch {
 					(static_cast<unsigned int>(movingPointerToBufferData - m_readBuffer) >=
 						(m_readIndexBufferSize - 2 * MAX_SEARCH_WORD_SIZE)))
 				{
-					if (DISPLAY_TODO)
-					{
-						cout << "Need to read the index file in blocks!" << endl;
-					}
 
 					if (m_readIndexBufferSize < fileSize)
 						m_readIndexBufferSize = fileSize;
@@ -938,16 +914,6 @@ namespace dirsearch {
 				inputFile.read(m_readBuffer, readBlockSize);
 				startPosition += readBlockSize;
 
-				if (DISPLAY_TODO)
-				{
-					static bool oneShotFlag = false;
-					if (!oneShotFlag)
-					{
-						cout << "TODO: Read buffer files in smaller blocks!!!" << endl;
-						oneShotFlag = true;
-					}
-				}
-
 				if (!inputFile)
 				{
 					if (DEBUG_MODE || ENABLE_ERROR_MSG)
@@ -965,16 +931,6 @@ namespace dirsearch {
 					cout << "Successfully Opened file: " << fileName << " with index = " <<
 						fileArrayIndex << ", of size: " << fileSize << endl;
 				}
-
-
-				//if (DEBUG_MODE && (fileArrayIndex == 1744))
-				//{
-				//	int dummy = 0;
-				//	dummy += dummy + 1;
-				//}
-
-
-
 
 				for (unsigned int i = 0; i < readBlockSize; i++)
 				{
@@ -1024,12 +980,6 @@ namespace dirsearch {
 						{
 							// Put this in a function and call at end too
 							this->InsertWord();
-
-							//if (DEBUG_MODE && (fileArrayIndex == 1744) && (m_wholeWord == "company"))
-							//{
-							//	int dummy = 0;
-							//	dummy += dummy + 1;
-							//}
 
 							if (nextChar == ' ')
 								m_onlySpacesBetweenWords = true;
@@ -1174,7 +1124,19 @@ namespace dirsearch {
 	}
 
 
-
+	// This function was from: https://www.rosettacode.org/wiki/Count_occurrences_of_a_substring
+	// returns count of non-overlapping occurrences of 'sub' in 'str'
+	int countSubstring(const std::string& str, const std::string& sub)
+	{
+		if (sub.length() == 0) return 0;
+		int count = 0;
+		for (size_t offset = str.find(sub); offset != std::string::npos;
+		offset = str.find(sub, offset + sub.length()))
+		{
+			++count;
+		}
+		return count;
+	}
 
 
 
@@ -1219,11 +1181,11 @@ namespace dirsearch {
 					m_fileTotalSearchTermsFound++;
 					m_allKeywordsFoundInFile[*thisWord] = true;
 				}
-				else if (m_doSubstringSearch && (m_wholeWord.find(*thisWord) != string::npos))
+				else if (m_wholeWord.find(*thisWord) != string::npos)
 				{
 					// TODO do substring search
 					subStringFound = true;
-					m_fileTotalSearchTermsFound++;
+					m_fileTotalSearchTermsFound += countSubstring(m_wholeWord, *thisWord);
 					m_allKeywordsFoundInFile[*thisWord] = true;
 				}
 			}
@@ -1289,10 +1251,7 @@ namespace dirsearch {
 				std::string writeBuffer;
 				writeBuffer.reserve(m_readBufferSize);
 
-				// TODO write th
-				if (DISPLAY_TODO)
-					cout << "TODO: write buffer in much larger chuncks!" << endl;
-
+				// TODO write in larger chuncks
 
 				m_indexFilePosition = static_cast<unsigned int>(m_indexFile.tellp());
 
