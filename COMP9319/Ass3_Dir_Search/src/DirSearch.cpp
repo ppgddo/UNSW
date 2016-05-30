@@ -906,6 +906,7 @@ namespace dirsearch {
 			m_currentWordLength = 0;
 			m_wholeWord.clear();
 			m_onlySpacesBetweenWords = true;
+			m_skippedLongOrShortWord = false;
 
 			// TODO to read in smaller chunks, I just need to put the code below
 			// in a for loop for each chunck, so I won't need to change the logic
@@ -998,6 +999,12 @@ namespace dirsearch {
 					{
 						// Put this in a function and call at end too
 						this->InsertWord();
+
+						//if (DEBUG_MODE && (fileArrayIndex == 1744) && (m_wholeWord == "company"))
+						//{
+						//	int dummy = 0;
+						//	dummy += dummy + 1;
+						//}
 						
 						if (nextChar == ' ')
 							m_onlySpacesBetweenWords = true;
@@ -1159,12 +1166,9 @@ namespace dirsearch {
 		{
 			// Not searching for words less than 3 char long or more than 256 char long,
 			// so dont store these words
+			m_skippedLongOrShortWord = true;
 			return;
 		}
-
-
-
-
 		
 		// First pass is simply counting how many files each word is in
 		if (m_createIndexFile)
@@ -1205,12 +1209,19 @@ namespace dirsearch {
 				}
 			}
 			
-			if (m_doPhraseSearch && (!subStringFound))
+			if (m_doPhraseSearch ) // && (!subStringFound))
 			{
 				for (unsigned int i = 0; i < m_numberOfPhrases; i++)
 				{
 					unsigned short& phraseIndex = m_searchPhrases[i]->phraseIndex;
 					const std::vector<std::string>& phrases = m_searchPhrases[i]->phrases;
+
+					if (m_skippedLongOrShortWord)
+					{
+						// If just skipped a long or short word, reset the phrase index
+						phraseIndex = 0;
+					}
+
 					if (phrases[phraseIndex] == m_wholeWord)
 					{
 						if( (!m_onlySpacesBetweenWords) && (phraseIndex != 0) )
@@ -1233,6 +1244,8 @@ namespace dirsearch {
 				}
 			}
 		}
+
+		m_skippedLongOrShortWord = false;
 	}
 
 
