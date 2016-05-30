@@ -47,8 +47,8 @@ namespace dirsearch {
 	std::vector<std::string> DirSearch::ConvertString(const std::vector<std::string>& searchStrings)
 	{
 		std::vector<std::string> convertedStrings;
-		char previousConvertedChar = 0;
-		bool compressDoubleLetter = false;
+		//char previousConvertedChar = 0;
+		//bool compressDoubleLetter = false;
 		//bool startNewPhrase = false;
 		Phrase* phrase = nullptr;
 
@@ -57,8 +57,8 @@ namespace dirsearch {
 		{
 			std::string newWord;
 
-			previousConvertedChar = 0;
-			compressDoubleLetter = false;
+			//previousConvertedChar = 0;
+			//compressDoubleLetter = false;
 			unsigned short wordUncompressedSize = 0;
 
 			for (auto nextChar = (*nextWord).begin();
@@ -68,22 +68,22 @@ namespace dirsearch {
 				{
 					wordUncompressedSize++;
 					char convertedChar = std::tolower(*nextChar, m_toLowerLocale);
-					if (convertedChar == previousConvertedChar)
-					{
-						// I will encode "double letters as their capital equivalent
-						convertedChar = std::toupper(convertedChar, m_toLowerLocale);
-						compressDoubleLetter = true;
-						previousConvertedChar = 0;
-					}
-					else
-					{
-						previousConvertedChar = convertedChar;
-					}
+					//if (convertedChar == previousConvertedChar)
+					//{
+					//	// I will encode "double letters as their capital equivalent
+					//	convertedChar = std::toupper(convertedChar, m_toLowerLocale);
+					//	compressDoubleLetter = true;
+					//	previousConvertedChar = 0;
+					//}
+					//else
+					//{
+					//	previousConvertedChar = convertedChar;
+					//}
 
-					if (compressDoubleLetter)
-						newWord.pop_back();
+					//if (compressDoubleLetter)
+					//	newWord.pop_back();
 
-					compressDoubleLetter = false;
+					//compressDoubleLetter = false;
 
 					newWord.push_back(convertedChar);
 				}
@@ -100,8 +100,8 @@ namespace dirsearch {
 
 					wordUncompressedSize++;
 					//newWord.push_back(*nextChar);
-					previousConvertedChar = 0;
-					compressDoubleLetter = false;
+					//previousConvertedChar = 0;
+					//compressDoubleLetter = false;
 					newWord.clear();
 				}
 			}
@@ -875,8 +875,8 @@ namespace dirsearch {
 
 			char nextChar = 0;
 			char convertedChar = 0;
-			char previousConvertedChar = 0;
-			bool compressDoubleLetter = false;
+			//char previousConvertedChar = 0;
+			//bool compressDoubleLetter = false;
 			bool startNewWord = true;
 			bool wordInserted = false;
 			unsigned int arrayIndexBase = 0;
@@ -951,23 +951,24 @@ namespace dirsearch {
 						if (searchMode != traversingOversizedWord)
 						{
 							convertedChar = std::tolower(nextChar, m_toLowerLocale);
-							if (convertedChar == previousConvertedChar)
-							{
-								// I will encode "double letters as their capital equivalent
-								convertedChar = std::toupper(convertedChar, m_toLowerLocale);
-								compressDoubleLetter = true;
-								previousConvertedChar = 0;
-							}
-							else
-							{
-								previousConvertedChar = convertedChar;
-							}
+							//if (convertedChar == previousConvertedChar)
+							//{
+							//	// I will encode "double letters as their capital equivalent
+							//	convertedChar = std::toupper(convertedChar, m_toLowerLocale);
+							//	compressDoubleLetter = true;
+							//	previousConvertedChar = 0;
+							//}
+							//else
+							//{
+							//	previousConvertedChar = convertedChar;
+							//}
 
 							searchMode = readingAlphaString;
-							if (compressDoubleLetter)
-								m_wholeWord.pop_back();
+							//if (compressDoubleLetter)
+							//	m_wholeWord.pop_back();
 
-							compressDoubleLetter = false;
+							//compressDoubleLetter = false;
+
 							m_wholeWord.push_back(convertedChar);
 							m_currentWordLength++;
 						}
@@ -994,8 +995,8 @@ namespace dirsearch {
 							m_wholeWord.clear();
 							m_currentWordLength = 0;
 							searchMode = traversingNonAlpha;
-							previousConvertedChar = 0;
-							compressDoubleLetter = false;
+							//previousConvertedChar = 0;
+							//compressDoubleLetter = false;
 						}
 						else
 						{
