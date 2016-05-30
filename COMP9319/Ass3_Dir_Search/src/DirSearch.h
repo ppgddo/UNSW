@@ -314,6 +314,7 @@ namespace dirsearch
 		AllKeywordsFoundMapT m_allKeywordsFoundInFile;
 		unsigned long m_fileTotalSearchTermsFound = 0;
 		bool m_doPhraseSearch = false;
+		bool m_onlySpacesBetweenWords = true;
 		SearchPhrasesT m_searchPhrases = { nullptr };
 		unsigned short m_numberOfPhrases = 0;
 		AllPhrasesFoundArrayT m_allPhrasesFoundInFile = { false };

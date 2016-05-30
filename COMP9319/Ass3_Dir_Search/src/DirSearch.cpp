@@ -406,7 +406,7 @@ namespace dirsearch {
 
 		unsigned int fileSize = 0;
 
-		if (!m_createIndexFile)
+		if(m_useIndexFile && (!m_createIndexFile) )
 		{
 			// Only need to load the index file data if it wasn't just created
 			// by this instance of the app
@@ -771,17 +771,13 @@ namespace dirsearch {
 		}
 		);
 
-		if (pairs.empty())
-		{
-			//cout << endl;
-		}
-		else
+		if (!pairs.empty())
 		{
 			for (auto itr = pairs.begin(); itr != pairs.end(); ++itr)
 			{
 				if (DEBUG_MODE)
 				{
-					cout << "results file index = " << (*itr).first <<
+					cout << "results file = " << (*itr).first <<
 						", word count = " << (*itr).second << endl;
 				}
 				else
@@ -909,6 +905,7 @@ namespace dirsearch {
 			m_tempExistingWordMap.clear();
 			m_currentWordLength = 0;
 			m_wholeWord.clear();
+			m_onlySpacesBetweenWords = true;
 
 			// TODO to read in smaller chunks, I just need to put the code below
 			// in a for loop for each chunck, so I won't need to change the logic
@@ -939,9 +936,19 @@ namespace dirsearch {
 			}
 			else if (DEBUG_MODE)
 			{
-				cout << "Successfully Opened file: " << fileName << ", of size: "
-					<< fileSize << endl;
+				cout << "Successfully Opened file: " << fileName << " with index = " <<
+					fileArrayIndex << ", of size: "	<< fileSize << endl;
 			}
+
+
+			//if (DEBUG_MODE && (fileArrayIndex == 1744))
+			//{
+			//	int dummy = 0;
+			//	dummy += dummy + 1;
+			//}
+
+
+
 
 			for (unsigned int i = 0; i < fileSize; i++)
 			{
@@ -991,6 +998,11 @@ namespace dirsearch {
 					{
 						// Put this in a function and call at end too
 						this->InsertWord();
+						
+						if (nextChar == ' ')
+							m_onlySpacesBetweenWords = true;
+						else
+							m_onlySpacesBetweenWords = false;
 					}
 					
 					if (searchMode != traversingNonAlpha)
@@ -1003,6 +1015,13 @@ namespace dirsearch {
 						previousConvertedChar = 0;
 						compressDoubleLetter = false;
 					}
+					else
+					{
+						m_onlySpacesBetweenWords = false;
+					}
+					
+					//if (m_doPhraseSearch && m_onlySpacesBetweenWords && (nextChar != ' ') )
+					//	m_onlySpacesBetweenWords = false;
 				}
 			}
 
@@ -1166,11 +1185,12 @@ namespace dirsearch {
 		}
 		else
 		{
+			bool subStringFound = false;
+
 			// If not contructing the index file, then just search each term now
 			for (auto thisWord = m_convertSearchString.begin();
 			thisWord != m_convertSearchString.end(); ++thisWord)
 			{
-				bool subStringFound = false;
 				if (m_wholeWord == *thisWord)
 				{
 					m_fileTotalSearchTermsFound++;
@@ -1183,28 +1203,32 @@ namespace dirsearch {
 					m_fileTotalSearchTermsFound++;
 					m_allKeywordsFoundInFile[*thisWord] = true;
 				}
-
-				if (m_doPhraseSearch && (!subStringFound) )
+			}
+			
+			if (m_doPhraseSearch && (!subStringFound))
+			{
+				for (unsigned int i = 0; i < m_numberOfPhrases; i++)
 				{
-					for (unsigned int i = 0; i < m_numberOfPhrases; i++)
+					unsigned short& phraseIndex = m_searchPhrases[i]->phraseIndex;
+					const std::vector<std::string>& phrases = m_searchPhrases[i]->phrases;
+					if (phrases[phraseIndex] == m_wholeWord)
 					{
-						unsigned short& phraseIndex = m_searchPhrases[i]->phraseIndex;
-						const std::vector<std::string>& phrases = m_searchPhrases[i]->phrases;
-						if (phrases[phraseIndex] == m_wholeWord)
+						if( (!m_onlySpacesBetweenWords) && (phraseIndex != 0) )
 						{
-							if ((++phraseIndex) == phrases.size())
-							{
-								// if full phrase has been found
-								phraseIndex = 0;
-								m_fileTotalSearchTermsFound++;
-								m_allPhrasesFoundInFile[i] = true;
-							}
-						}
-						else
-						{
-							// Reset the phrase index back to start
 							phraseIndex = 0;
 						}
+						if ((++phraseIndex) == phrases.size())
+						{
+							// if full phrase has been found
+							phraseIndex = 0;
+							m_fileTotalSearchTermsFound++;
+							m_allPhrasesFoundInFile[i] = true;
+						}
+					}
+					else
+					{
+						// Reset the phrase index back to start
+						phraseIndex = 0;
 					}
 				}
 			}
