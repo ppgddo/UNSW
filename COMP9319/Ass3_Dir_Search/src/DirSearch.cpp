@@ -49,6 +49,8 @@ namespace dirsearch {
 		std::vector<std::string> convertedStrings;
 		char previousConvertedChar = 0;
 		bool compressDoubleLetter = false;
+		//bool startNewPhrase = false;
+		Phrase* phrase = nullptr;
 
 		for (auto nextWord = searchStrings.begin();
 			nextWord != searchStrings.end(); ++nextWord)
@@ -87,15 +89,35 @@ namespace dirsearch {
 				}
 				else if ((*nextChar) == ' ')
 				{
+					// If a phrase is detected (i.e. search term with spaces)
+					if (phrase == nullptr)
+					{
+						phrase = new Phrase;
+						m_numberOfPhrases++;
+						m_doPhraseSearch = true;
+					}
+					phrase->phrases.push_back(newWord);
+
 					wordUncompressedSize++;
-					newWord.push_back(*nextChar);
+					//newWord.push_back(*nextChar);
 					previousConvertedChar = 0;
 					compressDoubleLetter = false;
+					newWord.clear();
 				}
 			}
 
+			if (phrase)
+			{
+				// Put on the last word of phrase
+				if (newWord.size() > 0)
+				{
+					phrase->phrases.push_back(newWord);
+				}
+				m_searchPhrases[m_numberOfPhrases - 1] = phrase;
+				phrase = nullptr;
+			}
 			// Min search term lengh is within the valid size range
-			if( (wordUncompressedSize >= 3) && (wordUncompressedSize <= MAX_SEARCH_WORD_SIZE) )
+			else if( (wordUncompressedSize >= 3) && (wordUncompressedSize <= MAX_SEARCH_WORD_SIZE) )
 				convertedStrings.push_back(newWord);
 		}
 
@@ -110,6 +132,11 @@ namespace dirsearch {
 		{
 			delete[] m_readBuffer;
 			m_readBuffer = nullptr;
+
+			for (unsigned int i = 0; i < m_numberOfPhrases; i++)
+			{
+				delete m_searchPhrases[i];
+			}
 		}
 
 		//delete[] m_prefixArray;
@@ -746,7 +773,7 @@ namespace dirsearch {
 
 		if (pairs.empty())
 		{
-			cout << endl;
+			//cout << endl;
 		}
 		else
 		{
@@ -840,6 +867,14 @@ namespace dirsearch {
 			m_fileWordCount = 0;
 			m_fileTotalSearchTermsFound = 0;
 			m_allKeywordsFoundInFile.clear();
+
+			if (m_doPhraseSearch)
+			{
+				for (unsigned int i = 0; i < m_numberOfPhrases; i++)
+				{
+					m_allPhrasesFoundInFile[i] = false;
+				}
+			}
 
 
 			if (fileSize > m_maxFileSize)
@@ -1009,6 +1044,7 @@ namespace dirsearch {
 			}
 			else
 			{
+				// If any key word is missing, we can return
 				for (auto thisWord = m_convertSearchString.begin();
 				thisWord != m_convertSearchString.end(); ++thisWord)
 				{
@@ -1016,6 +1052,16 @@ namespace dirsearch {
 						m_allKeywordsFoundInFile.end())
 					{
 						return;
+					}
+				}
+
+				// If there are phrases, check that they were all found
+				if (m_doPhraseSearch)
+				{
+					for (unsigned int i = 0; i < m_numberOfPhrases; i++)
+					{
+						if (m_allPhrasesFoundInFile[i] == false)
+							return;
 					}
 				}
 
@@ -1124,16 +1170,42 @@ namespace dirsearch {
 			for (auto thisWord = m_convertSearchString.begin();
 			thisWord != m_convertSearchString.end(); ++thisWord)
 			{
+				bool subStringFound = false;
 				if (m_wholeWord == *thisWord)
 				{
 					m_fileTotalSearchTermsFound++;
 					m_allKeywordsFoundInFile[*thisWord] = true;
 				}
-				else if(m_wholeWord.find(*thisWord) != string::npos )
+				else if (m_doSubstringSearch && (m_wholeWord.find(*thisWord) != string::npos))
 				{
 					// TODO do substring search
+					subStringFound = true;
 					m_fileTotalSearchTermsFound++;
 					m_allKeywordsFoundInFile[*thisWord] = true;
+				}
+
+				if (m_doPhraseSearch && (!subStringFound) )
+				{
+					for (unsigned int i = 0; i < m_numberOfPhrases; i++)
+					{
+						unsigned short& phraseIndex = m_searchPhrases[i]->phraseIndex;
+						const std::vector<std::string>& phrases = m_searchPhrases[i]->phrases;
+						if (phrases[phraseIndex] == m_wholeWord)
+						{
+							if ((++phraseIndex) == phrases.size())
+							{
+								// if full phrase has been found
+								phraseIndex = 0;
+								m_fileTotalSearchTermsFound++;
+								m_allPhrasesFoundInFile[i] = true;
+							}
+						}
+						else
+						{
+							// Reset the phrase index back to start
+							phraseIndex = 0;
+						}
+					}
 				}
 			}
 		}

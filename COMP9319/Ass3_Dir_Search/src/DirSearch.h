@@ -222,6 +222,13 @@ namespace dirsearch
 	};
 
 
+	struct Phrase
+	{
+		unsigned short phraseIndex = 0;
+		std::vector<std::string> phrases;
+	};
+
+
 	enum IndexConstructionState
 	{
 		CountNumFilesEachWordIsIn,
@@ -245,6 +252,8 @@ namespace dirsearch
 		typedef std::unordered_map<std::string, unsigned int > ExistingWordMapT;
 		typedef std::unordered_map<std::string, bool > AllKeywordsFoundMapT;
 		typedef std::unordered_map<std::string, WordListT > SearchWordMapT;
+		typedef bool AllPhrasesFoundArrayT[5];
+		typedef Phrase* SearchPhrasesT[5];
 		typedef char* FilenameArrayT[2000];
 
 		DirSearch(const std::string& targetDirectory, const std::string& indexFilename, 
@@ -285,6 +294,7 @@ namespace dirsearch
 		bool m_useIndexFile = false;
 		bool m_useIndexFileMap = false;
 		bool m_createIndexFile = false;
+		bool m_doSubstringSearch = false;
 		const unsigned int m_indexPercentage = 20;
 		const std::string m_dirFullPath;
 		const std::string m_indexFilename;
@@ -299,10 +309,14 @@ namespace dirsearch
 		IndexConstructionState m_indexConstructionState;
 		std::string m_nextMapStringFromIndexFile;
 		std::vector<std::string> m_filesInDir;
-		const std::vector<std::string> m_convertSearchString;
+		// Memeber variables used for calc the result
 		ResultFileDataT m_resultMap;
 		AllKeywordsFoundMapT m_allKeywordsFoundInFile;
 		unsigned long m_fileTotalSearchTermsFound = 0;
+		bool m_doPhraseSearch = false;
+		SearchPhrasesT m_searchPhrases = { nullptr };
+		unsigned short m_numberOfPhrases = 0;
+		AllPhrasesFoundArrayT m_allPhrasesFoundInFile = { false };
 		
 		// Used by the ReadAndSearchFile() and InsertWord() functions
 		std::string m_wholeWord;
@@ -310,6 +324,10 @@ namespace dirsearch
 		unsigned int m_fileWordCount;
 		unsigned int m_wordBlockSize = 256;
 		std::list<std::string> m_currentWordBlock;
+
+		// Make sure that this is initialised last as it depends on other member variables
+		// to be initialise first!
+		const std::vector<std::string> m_convertSearchString;
 	};
 
 }
